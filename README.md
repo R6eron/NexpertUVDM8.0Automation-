@@ -1,16 +1,14 @@
-# NexpertUVDM8.0Automation-
-UVDM 8.0 Automations
 import requests
 import time
 import json
 import hmac
 import hashlib
-import logging
 from xrpl.clients import JsonRpcClient
 from xrpl.wallet import Wallet
 from xrpl.models.transactions import Payment
 from xrpl.transaction import safe_sign_and_submit_transaction
 from flareio import FlareApiClient
+from xrpl.models.requests import ServerInfo
 
 def get_api_credentials():
     print("Enter your API credentials (keep secure!)")
@@ -40,10 +38,11 @@ def connect_to_xrpl():
         if response.status_code == 200:
             print("Connected to XRPL network successfully.")
             return JsonRpcClient(xrpl_url)
-        print(f"Failed to connect to XRPL network (status: {response.status_code}).")
-        return None
+        else:
+            print("Failed to connect to XRPL network (status: " + str(response.status_code) + ").")
+            return None
     except requests.exceptions.RequestException as e:
-        print("Connection to XRPL network failed:", e)
+        print("Connection to XRPL network failed: " + str(e))
         return None
 
 def retrieve_previous_month_ftso_data():
@@ -53,10 +52,10 @@ def retrieve_previous_month_ftso_data():
         response.raise_for_status()
         data = response.json()
         top_ftsos = sorted(data, key=lambda x: x.get("performance_score", 0), reverse=True)[:2]
-        print("Top FTSOs:", top_ftsos)
+        print("Top FTSOs: " + str(top_ftsos))
         return top_ftsos
     except requests.exceptions.RequestException as e:
-        print("Failed to retrieve FTSO data (using mock):", e)
+        print("Failed to retrieve FTSO data (using mock): " + str(e))
         return [{"ftso_id": "mock1", "performance_score": 95}, {"ftso_id": "mock2", "performance_score": 90}]
 
 def connect_to_flare_protocols(credentials):
@@ -69,18 +68,18 @@ def connect_to_flare_protocols(credentials):
         print("Connected to Flare Protocols successfully.")
         return api_client
     except Exception as e:
-        print("Failed to connect to Flare Protocols:", e)
+        print("Failed to connect to Flare Protocols: " + str(e))
         return None
 
 def auto_wrap_flare_tokens(flare_token_amount, flare_client):
     try:
         wrapped_response = flare_client.post("/wrap", data={"amount": flare_token_amount})
         wrapped_tokens = wrapped_response.json().get("wrapped_amount", flare_token_amount * 1.1)
-        print(f"Auto-wrapped {flare_token_amount} Flare tokens to {wrapped_tokens}")
+        print("Auto-wrapped " + str(flare_token_amount) + " Flare tokens to " + str(wrapped_tokens))
         return wrapped_tokens
     except Exception as e:
-        print("Failed to wrap Flare tokens:", e)
-        return None
+        print("Failed to wrap Flare tokens: " + str(e))
+        return flare_token_amount * 1.1  # Fallback value
 
 def delegate_votes_to_best_ftsos(credentials, wrapped_tokens, ftso_data, xrpl_client):
     total_votes = 100
@@ -91,9 +90,9 @@ def delegate_votes_to_best_ftsos(credentials, wrapped_tokens, ftso_data, xrpl_cl
         try:
             tx = Payment(account=wallet.classic_address, destination="rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh", amount=str(votes_per_ftso))
             response = safe_sign_and_submit_transaction(tx, wallet, xrpl_client)
-            print(f"Delegated {votes_per_ftso} votes to FTSO ID {ftso['ftso_id']}: {response.result}")
+            print("Delegated " + str(votes_per_ftso) + " votes to FTSO ID " + ftso['ftso_id'] + ": " + str(response.result))
         except Exception as e:
-            print(f"Failed to delegate votes to FTSO {ftso['ftso_id']}:", e)
+            print("Failed to delegate votes to FTSO " + ftso['ftso_id'] + ": " + str(e))
 
 def mint_f_assets(credentials, crypto_sets, xrpl_client):
     f_assets = []
@@ -102,11 +101,11 @@ def mint_f_assets(credentials, crypto_sets, xrpl_client):
         try:
             tx = Payment(account=wallet.classic_address, destination=wallet.classic_address, amount="100")
             response = safe_sign_and_submit_transaction(tx, wallet, xrpl_client)
-            f_asset = {"crypto_set": crypto_set, "f_asset_id": f"f_asset_{crypto_set}", "amount": 100, "tx_result": response.result}
+            f_asset = {"crypto_set": crypto_set, "f_asset_id": "f_asset_" + crypto_set, "amount": 100, "tx_result": response.result}
             f_assets.append(f_asset)
-            print(f"Minted {f_asset['amount']} {f_asset['f_asset_id']}: {response.result}")
+            print("Minted " + str(f_asset['amount']) + " " + f_asset['f_asset_id'] + ": " + str(response.result))
         except Exception as e:
-            print(f"Failed to mint {crypto_set}:", e)
+            print("Failed to mint " + crypto_set + ": " + str(e))
     return f_assets
 
 def get_nexo_balance(credentials):
@@ -116,10 +115,10 @@ def get_nexo_balance(credentials):
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         balances = response.json()
-        print("Nexo Balances:", balances)
+        print("Nexo Balances: " + str(balances))
         return balances
     except requests.exceptions.RequestException as e:
-        print(f"Nexo API Error: {e}")
+        print("Nexo API Error: " + str(e))
         return None
 
 def place_mexc_order(credentials, symbol, side, quantity, price):
@@ -134,20 +133,22 @@ def place_mexc_order(credentials, symbol, side, quantity, price):
     try:
         response = requests.post(f"{base_url}{endpoint}", headers=headers, data=params, timeout=10)
         response.raise_for_status()
-        print("MEXC Order Placed:", response.json())
-        return response.json()
+        order = response.json()
+        print("MEXC Order Placed: " + str(order))
+        return order
     except requests.exceptions.RequestException as e:
-        print(f"MEXC API Error: {e}")
+        print("MEXC API Error: " + str(e))
         return None
 
 def query_bifrost_staking(credentials):
     try:
         response = requests.get(credentials['bifrost_endpoint'], timeout=10)
         response.raise_for_status()
-        print("Bifrost Staking Data:", response.json())
-        return response.json()
+        data = response.json()
+        print("Bifrost Staking Data: " + str(data))
+        return data
     except requests.exceptions.RequestException as e:
-        print("Failed to query Bifrost:", e)
+        print("Failed to query Bifrost: " + str(e))
         return {"mock_staking": "100 FLR delegated"}
 
 def main():
