@@ -1,3 +1,4 @@
+"UVDM 8.0 Automation".
 exchange = ccxt.nexo({'apiKey': credentials['nexo_api_key'], 'secret': credentials['nexo_api_secret'], 'enableRateLimit': True})
 ohlcv = exchange.fetch_ohlcv('XLM/USD', '1d', limit=365)  # Last 365 days
 historical_prices = [candle[4] for candle in ohlcv]  # Close prices
