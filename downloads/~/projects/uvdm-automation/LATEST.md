@@ -5,6 +5,6 @@ This is the **always-up-to-date** version of Ron Lewis's Legacy Archive and livi
 **Full living archive (continuously updated):**  
 https://github.com/R6eron/NexpertUVDM-Automation/blob/main/Legacy_Archive.md
 
-Last updated: $(date '+%Y-%m-%d %H:%M GMT')
+Last updated: 2026-03-28 05:56 GMT
 
 **When Ron Won.**
