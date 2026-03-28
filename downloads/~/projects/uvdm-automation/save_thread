@@ -1,0 +1,11 @@
+#!/data/data/com.termux/files/usr/bin/bash
+cd \~/projects/uvdm-automation
+DATE=$(date '+%Y-%m-%d_%H%M')
+FILENAME="thread_${DATE}.md"
+echo "# Thread saved on ${DATE}" > "$FILENAME"
+echo "" >> "$FILENAME"
+termux-clipboard-get >> "$FILENAME"
+git add "$FILENAME"
+git commit -m "Legacy Archive: Thread saved ${DATE}"
+git push
+echo "✅ Thread saved and pushed as $FILENAME"

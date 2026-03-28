@@ -1,0 +1,12 @@
+#!/data/data/com.termux/files/usr/bin/bash
+cd \~/projects/uvdm-automation
+DATE=$(date '+%Y-%m-%d %H:%M')
+echo "" >> Legacy_Archive.md
+echo "## Entry — ${DATE}" >> Legacy_Archive.md
+echo "" >> Legacy_Archive.md
+termux-clipboard-get >> Legacy_Archive.md
+echo "" >> Legacy_Archive.md
+git add Legacy_Archive.md
+git commit -m "Legacy Archive: New entry ${DATE}"
+git push
+echo "✅ Saved to Legacy_Archive.md and pushed to repo"
