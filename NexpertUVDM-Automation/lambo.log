@@ -1,0 +1,12 @@
+nohup: ignoring input
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/NexpertUVDM-Automation/lambo_uvdm.py", line 2, in <module>
+    import ccxt, pandas as pd, pandas_ta as ta, time, os
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/ccxt/__init__.py", line 29, in <module>
+    from ccxt.base.exchange import Exchange                     # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/ccxt/base/__init__.py", line 24, in <module>
+    from ccxt.base import exchange
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/ccxt/base/exchange.py", line 42, in <module>
+    from cryptography.hazmat import backends
+ModuleNotFoundError: No module named 'cryptography'

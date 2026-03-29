@@ -1,0 +1,11 @@
+Fri Mar 20 06:02:54 GMT 2026 - Adding 50 USDT at 0.166
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/ccxt/__init__.py", line 29, in <module>
+    from ccxt.base.exchange import Exchange                     # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/ccxt/base/__init__.py", line 24, in <module>
+    from ccxt.base import exchange
+  File "/data/data/com.termux/files/usr/lib/python3.13/site-packages/ccxt/base/exchange.py", line 42, in <module>
+    from cryptography.hazmat import backends
+ModuleNotFoundError: No module named 'cryptography'

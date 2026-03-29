@@ -1,0 +1,6 @@
+nano \~/NexpertUVDM-Automation/vault_save.py
+print("Fist tightened: continuation saved. No tilt.")
+python vault_save.py "test_save.md" "Fist tightened. Legacy locked.".nano \~/NexpertUVDM-Automation/vault_save.py
+cd \~/NexpertUVDM-Automation/vault/voice_breaths_2026
+mv oldname.m4a newname.m4a
+

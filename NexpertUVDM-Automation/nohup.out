@@ -1,0 +1,34 @@
+crond: invalid option -- L
+Usage:
+ crond [options]
+
+Options:
+ -h         print this message 
+ -i         daemon runs without inotify support
+ -m <comm>  off, or specify preferred client for sending mails
+ -n         run in foreground
+ -f         run in foreground, the same as -n
+ -p         permit any crontab
+ -P         inherit PATH from environment instead of using default value            of "/data/data/com.termux/files/usr/bin"
+ -s         log into syslog instead of sending mails
+ -V         print version and exit
+ -x <flag>  print debug information
+
+Debugging flags are: ext,sch,proc,pars,load,misc,test,bit
+crond: invalid option -- L
+Usage:
+ crond [options]
+
+Options:
+ -h         print this message 
+ -i         daemon runs without inotify support
+ -m <comm>  off, or specify preferred client for sending mails
+ -n         run in foreground
+ -f         run in foreground, the same as -n
+ -p         permit any crontab
+ -P         inherit PATH from environment instead of using default value            of "/data/data/com.termux/files/usr/bin"
+ -s         log into syslog instead of sending mails
+ -V         print version and exit
+ -x <flag>  print debug information
+
+Debugging flags are: ext,sch,proc,pars,load,misc,test,bit

@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+import requests
+import os
+from datetime import datetime
+API_KEY = os.getenv('MEXC_API_KEY')
+print(f"🚀 XRPEASY LIVE | {datetime.now().strftime('%H:%M GMT')}")
+print(f"Keys: {'✅' if API_KEY else '❌'}")
+PIVOT_FLOOR = 0.1490
+try:
+1. TAP: Ctrl key (bottom left) → SLIDE to O → RELEASE  
+   ↓ OR ↓
+   TAP Volume Down + O (Termux mobile shortcut)
+
+2. TAP: Enter (green check) → SAVES FILE
+
+3. TAP: Ctrl key → SLIDE to X → RELEASE  
+   ↓ OR ↓  
+   TAP Volume Down + X
+    r=requests.get("https://api.mexc.com/api/v3/ticker/price?symbol=XLMUSDT", timeout=10)
+    p=float(r.json()['price'])
+    print(f"XLM ${p:.6f}")
+    if p<=PIVOT_FLOOR: print("🛑 SELL ALL")
+    elif p<PIVOT_FLOOR*1.10: print("⚠️ PARTIAL")
+    elif p>PIVOT_FLOOR*1.25: print("💰 PROFIT")
+    else: print("✅ HOLD")
+except: print("❌ API fail")
+print("Jesse100 | XRPEASY.CO.UK")
+**
+️⃣
+
+-.
+
+-.
+
+-.
+
+-.
+
