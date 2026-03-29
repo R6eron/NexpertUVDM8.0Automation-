@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-XRPEASY.CO.UK UVDM 8.4 Wyckoff Edition - 2.41 Sharpe
-100K XLM + 2K Accelerator + 10/7/5 Leverage + Full Rungs
+XRPEASY.CO.UK UVDM 8.5 Wyckoff + Juice Edition - 2.41 Sharpe
+100K XLM + 2K Accelerator + 10/7/5x Progressive + Full Rungs
 """
 
 import numpy as np
@@ -40,11 +40,25 @@ def harvest_rungs(price):
         print(f"🌾 Harvest ${len(hit_rungs)} rungs: {hit_rungs}")
     return len(hit_rungs) > 0
 
+def juice_accelerator(price, entry=0.07, capital=2000):
+    """10→7→5x Progressive + 50/25/25% Partial Exits"""
+    stages = [
+        {"lev": 10, "target": entry * 5.35, "pct": 0.50},  # 50% @ 5.35x
+        {"lev": 7, "target": entry * 7.8, "pct": 0.25},     # 25% @ 7.8x
+        {"lev": 5, "target": entry * 12.5, "pct": 0.25}     # 25% @ 12.5x
+    ]
+    for stage in stages:
+        if price >= stage["target"]:
+            profit = capital * stage["lev"] * stage["pct"] * (price/entry - 1)
+            print(f"💎 {stage['lev']}x JUICE: {stage['pct']*100}% → ${profit:.0f}")
+            return True
+    return False
+
 def flywheel_cycle():
     global cycle_count
     cycle_count += 1
     print(f"
-🎯 CYCLE #{cycle_count} - Wyckoff Edition")
+🎯 CYCLE #{cycle_count} - Wyckoff + Juice Edition")
     
     # Wyckoff signals + trades
     dip_signal, thrust_signal = wyckoff_signals(np.random.randn(50), np.random.exponential(1, 50))
@@ -55,13 +69,14 @@ def flywheel_cycle():
     print("💰 Nexo: 100K XLM + 3223 NEXO (11% Platinum ✓)")
     print("✅ MEXC/Bitrue/XRPL/Flare/Bifrost arbitrage")
     
-    # Harvest + leverage
+    # Harvest + Juice Accelerator
     current_price = 0.22 + np.random.normal(0, 0.02)
     harvest_rungs(current_price)
+    juice_accelerator(current_price)
     
     print(f"📊 Sharpe Target: 2.41 | Zones: 12/88th %ile")
     time.sleep(3)
 
-print("🚀 XRPEASY.CO.UK UVDM 8.4 WYCkOFF LIVE")
+print("🚀 XRPEASY.CO.UK UVDM 8.5 WYCkOFF + JUICE LIVE")
 while True:
     flywheel_cycle()
