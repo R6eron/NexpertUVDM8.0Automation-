@@ -1,0 +1,4 @@
+  File "/data/data/com.termux/files/home/projects/uvdm-automation/udvm_main.py.save.1", line 2
+    print("
+          ^
+SyntaxError: unterminated string literal (detected at line 2)
