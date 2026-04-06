@@ -1,0 +1,28 @@
+1. Paste the MISSING end of line 1:
+   git@github.com:R6eron/NexpertUVDM-Automation.git`"
+
+2. Fix line 3 end: Nexo yields live"
+
+3. Fix line 4 end: Red <2.1 = BLOCKED"
+
+4. Ctrl+O → Enter → Save
+5. Ctrl+X → Exit
+`git clone git@github.com:R6eron/NexpertUVDM-Automation.git`"DM-Automation.git`"1. Ctrl+O AGAIN → Enter (try different name if prompted)
+2. OR Ctrl+C → Ignore error → Ctrl+X → Force exit
+0# UVDM Auto-Responses (8000/week)
+
+## 1. Book Hex Verification
+"Thanks for your hex! ✅ Repo invite sent.
+`git clone git@github.com:R6eron/NexpertUVDM-Automation.git`"
+
+## 2. Setup Help  
+"1. cd ~/projects/uvdm-automation
+2. python3 udvm_fixed.py  
+3. tail -f empire.log"
+
+## 3. Voice Demo
+"type 'voice' → Bitrue futures OR Nexo yields live"
+
+## 4. Sharpe Gatekeeper
+"🟢 Green 5.6+ = APPROVED | 🔴 Red <2.1 = BLOCKED"
+
