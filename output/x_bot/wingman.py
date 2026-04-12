@@ -1,4 +1,64 @@
-#!/usr/bin/env python3
+import sys
+import time
+
+def render():
+    pass
+
+if __name__ == '__main__':
+    if '--once' in sys.argv:
+        render()
+    else:
+        while True:
+            render()
+            time.sleep(2)python3 wingman.py --onceimport sys
+import time
+
+def render():
+    pass
+
+if __name__ == '__main__':
+    if '--once' in sys.argv:
+        render()
+    else:
+        while True:
+            render()
+            time.sleep(2)python3 wingman.py --once
+import sys
+import time
+
+def render():
+    pass
+
+o
+if __name__ == '__main__':
+    if '--once' in sys.argv:
+        render()
+    else:
+        while True:
+            render()
+            time.sleep(2)
+python3 wingman.py --once
+import sys
+import time
+
+def render():
+    pass  # replace with your actual render logic
+
+if __name__ == '__main__':
+    if '--once' in sys.argv:
+        render()
+    else:
+        while True:
+            render()
+            time.sleep(2)python3 wingman.py --once
+ONBOARDING
+Preserve the Accelerator Fund at all times; deploy only surplus capital into spot growth and balance-sheet repair.
+
+STANDBY
+Keep the Accelerator Fund intact; use only surplus for spot growth and de-leveraging.
+
+LIVE
+Accelerator Fund first, spot growth second, de-leverage always.#!/usr/bin/env python3
 import json, os, sys, time
 from datetime import datetime
 from pathlib import Path
