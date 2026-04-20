@@ -1,0 +1,8 @@
+# Recompute UDVM expert score (optional each run)
+python3 "$HOME/score_udvm.py" >/dev/null 2>&1 || true
+
+# Load EXPERT_SCORE from env file
+if [ -f "$HOME/.udvm_score.env" ]; then
+  . "$HOME/.udvm_score.env"
+fi
+expert="${EXPERT_SCORE:-0}"
