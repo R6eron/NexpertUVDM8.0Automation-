@@ -1,0 +1,1 @@
+print("VAULT ARMED")\nprint("XRPL OPERATIONAL")

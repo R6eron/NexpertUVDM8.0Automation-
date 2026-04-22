@@ -1,0 +1,6 @@
+ccxt
+xrpl-py
+requests
+flareio
+numpy
+pandas
