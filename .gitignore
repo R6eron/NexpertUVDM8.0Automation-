@@ -1,0 +1,24 @@
+# Secrets
+.env
+voice-lab/.env
+**/.env.local
+
+# voice-lab generated artifacts and venvs
+voice-lab/.venv/
+voice-lab/.venv-openvoice/
+voice-lab/samples/
+voice-lab/prepared/
+voice-lab/output/
+voice-lab/config/voice.json
+voice-lab/checkpoints/
+voice-lab/models/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Editor / OS
+.DS_Store
+*.swp
