@@ -1,4 +1,4 @@
-cd ~/NexpertUVDM-Automation
+ ~/NexpertUVDM-Automation
 
 cat > uvdm8_operator.py <<'EOF'
 #!/usr/bin/env python3
