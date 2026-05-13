@@ -68,3 +68,6 @@ print(c("DOCTRINE", MAGENTA, True))
 print(c("Use current local swing highs, not stale macro highs.", MAGENTA))
 print(c("Process over outcome. No revenge trading.", MAGENTA, True))
 print(c("Obey. Do not argue.", MAGENTA, True))
+nano ~/wingman_cockpit.py
+python3 ~/wingman_cockpit.py
+~/sync_wingman.sh
