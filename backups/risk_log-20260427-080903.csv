@@ -1,0 +1,10 @@
+timestamp,token,regime,price,color,message,color_id,state_id,leverage,position_size
+2026-04-26T22:16:42.554209,XLMUSDT,leader,0.1595,YELLOW,"XLM WATCH: 0.1585-0.1605 demand band, react not predict.",1,2,7.0,9084
+2026-04-26T22:16:42.554666,BTCUSDT,leader,58000,YELLOW,"BTC CAUTION: 55k-60k, tape deciding.",1,1,5.0,0.01
+2026-04-26T22:16:42.554803,XRPUSDT,laggard,2.05,YELLOW,"XRP WATCH: 2.00-2.10 reclaim zone, wait for proof.",1,2,5.0,1000
+2026-04-26T22:23:15.695190,XLMUSDT,leader,0.1595,YELLOW,"XLM WATCH: 0.1585-0.1605 demand band, react not predict.",1,2,7.0,9084
+2026-04-26T22:23:15.695467,BTCUSDT,leader,58000,YELLOW,"BTC CAUTION: 55k-60k, tape deciding.",1,1,5.0,0.01
+2026-04-26T22:23:15.695584,XRPUSDT,laggard,2.05,YELLOW,"XRP WATCH: 2.00-2.10 reclaim zone, wait for proof.",1,2,5.0,1000
+2026-04-26T22:34:31.291587,XLMUSDT,leader,0.1705,GREEN,"XLM GO: >0.1605, constructive while demand band holds as support.",2,4,7.0,9084
+2026-04-26T22:34:31.292235,BTCUSDT,leader,77983.33,GREEN,"BTC GO: >=62k, leader risk-on within defined size.",2,4,5.0,0.01
+2026-04-26T22:34:31.292637,XRPUSDT,laggard,1.4243,RED,"XRP CUT: <=1.80, hedge/exit.",0,0,5.0,1000
