@@ -1,0 +1,88 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+STATE_DB="$HOME/.config/uvdm/state.db"
+
+get_val() {
+    local key="$1"
+    [ -f "$STATE_DB" ] && grep "^${key}=" "$STATE_DB" 2>/dev/null | cut -d'=' -f2
+}
+
+paint() {
+    printf '%b
+' "$1"
+}
+
+enable_colors() {
+    RESET='\u001B[0m'
+    BOLD='\u001B[1m'
+    WHITE='\u001B[97m'
+    CYAN='\u001B[36m'
+    GREEN='\u001B[32m'
+    YELLOW='\u001B[33m'
+    MAGENTA='\u001B[35m'
+    RED='\u001B[31m'
+}
+
+disable_colors() {
+    RESET=''
+    BOLD=''
+    WHITE=''
+    CYAN=''
+    GREEN=''
+    YELLOW=''
+    MAGENTA=''
+    RED=''
+}
+
+if [ -n "${NO_COLOR:-}" ]; then
+    disable_colors
+else
+    ncolors=$(tput colors 2>/dev/null || echo 0)
+    if [ "$ncolors" -ge 8 ] || [ "${TERM:-}" = "xterm-256color" ]; then
+        enable_colors
+    else
+        disable_colors
+    fi
+fi
+
+xlm_spot=$(get_val "XLM_SPOT")
+xlm_fut=$(get_val "XLM_FUT")
+price=$(get_val "XLM_PRICE")
+
+: "${xlm_spot:=0}"
+: "${xlm_fut:=0}"
+: "${price:=0.0000}"
+
+xlm_total=$((xlm_spot + xlm_fut))
+
+wy_msg="${GREEN}Consolidation After Recovery${RESET}"
+voice_msg="${GREEN}Higher Low Structure Intact${RESET} | ${YELLOW}Monitor Continuation${RESET}"
+bias_msg="${GREEN}${BOLD}CONSTRUCTIVE${RESET}"
+floor_msg="${YELLOW}0.1400${RESET}"
+invalidate_msg="${RED}Lose 0.1400 with weak reclaim${RESET}"
+action_msg="${YELLOW}Let runner work.${RESET} ${CYAN}Watch 0.1505-0.1520 for strength.${RESET}"
+
+paint "${BOLD}${WHITE}=== UVDM Market Finger-Tips ===${RESET}"
+paint "${CYAN}Time:${RESET} $(date '+%H:%M:%S')"
+paint "${GREEN}wy${RESET}    -> Holding ${WHITE}${price}${RESET} | ${wy_msg}"
+paint "${GREEN}voice${RESET} -> ${voice_msg}"
+
+printf '
+'
+paint "${BOLD}${WHITE}=== Portfolio ===${RESET}"
+paint "${CYAN}XLM Spot${RESET}     : ${WHITE}${xlm_spot}${RESET}"
+paint "${CYAN}XLM Long${RESET}     : ${WHITE}${xlm_fut}${RESET} @ 7x ${YELLOW}(Runner)${RESET}"
+paint "${CYAN}XLM Total${RESET}    : ${WHITE}${xlm_total}${RESET}"
+paint "${CYAN}Current Price${RESET}: ${WHITE}${price}${RESET}"
+
+printf '
+'
+paint "${GREEN}Bias${RESET}         : ${bias_msg}"
+paint "${YELLOW}Hard Floor${RESET}   : ${floor_msg}"
+paint "${RED}Invalidate${RESET}   : ${invalidate_msg}"
+paint "${MAGENTA}Action${RESET}       : ${action_msg}"
+
+printf '
+'
+paint "${BOLD}${WHITE}Tape truth:${RESET} Obey. Do not argue."
+paint "${BOLD}${WHITE}Process over outcome.${RESET}"
