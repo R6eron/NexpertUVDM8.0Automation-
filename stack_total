@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+db="$HOME/.config/uvdm/state.db"
+xlm_spot=$(grep '^XLM_SPOT=' "$db" | cut -d'=' -f2)
+xlm_fut=$(grep '^XLM_FUT=' "$db" | cut -d'=' -f2)
+flr=$(grep '^FLR_TOTAL=' "$db" | cut -d'=' -f2)
+sgb=$(grep '^SGB_TOTAL=' "$db" | cut -d'=' -f2)
+xrpn=$(grep '^XRPN_TOTAL=' "$db" | cut -d'=' -f2)
+: "${xlm_spot:=0}"
+: "${xlm_fut:=0}"
+: "${flr:=0}"
+: "${sgb:=0}"
+: "${xrpn:=0}"
+xlm_total=$((xlm_spot + xlm_fut))
+echo "XLM:  $xlm_total"
+echo "    spot  $xlm_spot"
+echo "    fut   $xlm_fut"
+echo "FLR:  $flr"
+echo "SGB:  $sgb"
+echo "XRPN: $xrpn"

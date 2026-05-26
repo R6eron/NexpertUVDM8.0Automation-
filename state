@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+raw1="$1"
+raw2="$2"
+
+if [ -z "$raw1" ]; then
+  echo "Usage: state {xlm|xlm_fut|flr|sgb|xrpn} AMOUNT"
+  echo "Examples:"
+  echo "  state xlm 105000"
+  echo "  state xlm_fut 102645"
+  echo "  state XLM_105,000"
+  echo "  state XLM_FUT_102,645"
+  exit 1
+fi
+
+if [[ "$raw1" =~ ^([a-zA-Z]+)_([0-9,]+)$ ]] && [ -z "$raw2" ]; then
+  asset="${BASH_REMATCH[1]}"
+  amount="${BASH_REMATCH[2]}"
+elif [[ "$raw1" =~ ^([a-zA-Z]+_[a-zA-Z]+)_([0-9,]+)$ ]] && [ -z "$raw2" ]; then
+  asset="${BASH_REMATCH[1]}"
+  amount="${BASH_REMATCH[2]}"
+else
+  asset="$raw1"
+  amount="$raw2"
+fi
+
+if [ -z "$amount" ]; then
+  echo "Usage: state {xlm|xlm_fut|flr|sgb|xrpn} AMOUNT"
+  exit 1
+fi
+
+amount="${amount//,/}"
+
+case "$asset" in
+  xlm|XLM)
+    key="XLM_SPOT"
+    ;;
+  xlm_fut|XLM_FUT)
+    key="XLM_FUT"
+    ;;
+  flr|FLR)
+    key="FLR_TOTAL"
+    ;;
+  sgb|SGB)
+    key="SGB_TOTAL"
+    ;;
+  xrpn|XRPN)
+    key="XRPN_TOTAL"
+    ;;
+  *)
+    echo "Unknown asset. Use one of: xlm, xlm_fut, flr, sgb, xrpn"
+    exit 1
+    ;;
+esac
+
+"$HOME/.config/uvdm/set_state.sh" "$key" "$amount"
