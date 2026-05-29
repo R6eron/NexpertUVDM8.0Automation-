@@ -38,3 +38,6 @@ voice-lab/prepared/
 voice-lab/samples/
 wingman.err
 wingman.out
+.env
+uvdm_realized_pnl.json
+uvdm_full_auto.log
