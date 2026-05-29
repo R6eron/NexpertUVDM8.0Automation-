@@ -14,7 +14,9 @@ import requests
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    from pathlib import Path as _Path
+    BASE_DIR = _Path(__file__).resolve().parent
+    load_dotenv(BASE_DIR / ".env")
 except Exception:
     pass
 
@@ -163,8 +165,9 @@ def run_allocator() -> Dict[str, Any]:
     logger.info("ALLOC_PLAN %s", json.dumps(plan, indent=2))
     print(json.dumps(plan, indent=2))
 
-    if mode != "live":
-        logger.info("Paper mode active. No live Bitrue orders sent.")
+    dry_run = os.getenv("DRY_RUN", "true").strip().lower() == "true"
+    if dry_run or mode != "live":
+        logger.info("Dry-run or paper mode active. No live Bitrue orders sent.")
         return {"ok": True, "mode": mode, "plan": plan, "orders": []}
 
     if not api_key or not api_secret:
