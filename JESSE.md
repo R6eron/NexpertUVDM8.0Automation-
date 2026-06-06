@@ -15,3 +15,4 @@ Core rules:
 - Control yourself or the market will do it for you.
 
 Jesse & DRon scripts (for TTS / ElevenLabs) are in `voice/jesse_catchphrases.txt`.
+
