@@ -11,8 +11,22 @@ state
 state.bak
 uvdm_realized_pnl.json
 uvdm_identity.json
+<<<<<<< HEAD
 execution_log.jsonl
 =
 uvdm_identity.json
 execution_log.jsonl
 =
+=======
+voice-lab/.env
+voice-lab/config/
+voice-lab/output/
+voice-lab/prepared/
+voice-lab/samples/
+wingman.err
+wingman.out
+
+*.bak
+*.bad
+snapshot.txt
+>>>>>>> 228c4cc (Ignore pivot guard scratch files)
