@@ -1,0 +1,69 @@
+UVDM INDEX / DEFINITIONS
+
+[1] STATE
+ABOVE_PIVOT_CONFIRMED = price clearly above pivot with stronger follow-through
+ABOVE_PIVOT_WEAK = price above pivot, but confirmation is still weak
+AT_PIVOT_ZONE = price sitting near pivot decision area
+BELOW_PIVOT_WEAK = price below pivot, but not decisively broken
+BELOW_PIVOT_CONFIRMED = price below pivot with stronger negative follow-through
+
+[2] FOLLOW_THRU
+positive = constructive move with enough strength
+positive_weak = constructive, but lacking strong confirmation
+neutral = no clear directional follow-through
+negative_weak = soft downside pressure
+negative = confirmed downside pressure
+
+[3] SPRING
+spring_under_pivot = liquidity sweep / breakdown zone under pivot
+spring_test_zone = testing around pivot after sweep or reclaim
+follow_through_zone = beyond test zone; move is trying to continue
+
+[4] HOLD / ML STOP
+HOLD_RECLAIM = hold core position while reclaim structure remains valid
+ML STOP = machine-learning stop state used by your workflow
+WATCHING_WICK = wick-sensitive watch state near reclaim/pivot test
+
+[5] FTSO / FLARE
+WFLR = wrapped FLR
+WSGB = wrapped SGB
+50_50_TOP_FTSO = delegate 50/50 to previous period top two providers
+gas reserve = keep small token reserve for fees
+deleg = delegated amount
+wrapped = wrapped amount
+hold = total held amount
+
+[6] RISK / DOCTRINE
+Tape truth = obey market structure, do not impose opinion
+Process over outcome = follow system rules, not emotion
+LOW_VOLUME_CREEP = low-volume move, no hard break yet
+SPRING_TEST_RECLAIM = reclaim after spring-style wick or liquidity sweep
+
+[7] ACTIVE COMMANDS
+xlmguard = run XLM pivot guard
+xlmstate = show latest XLM saved state
+xrpguard = run XRP pivot guard
+xrpstate = show latest XRP saved state
+flrguard = run FLR pivot guard
+flrstate = show latest FLR saved state
+sgbguard = run SGB pivot guard
+sgbstate = show latest SGB saved state
+hexer = jump to NexpertUVDM-Automation
+hexercheck = quick repo check
+gpush = git push helper for UVDM repo
+gcheck = pre-push repo check helper
+gstatus = git status snapshot helper
+deploy = deployment flow for automation/trading
+Tp_xlm = XLM target/take-profit helper for all XLM assets
+inrepo = check or assert that you are in the correct repo lane
+Zzzz = sleep checkpoint: save state, log context, and push suitable updates
+index = open this index / definitions viewer
+definitions = synonym for index
+
+[8] TERMINAL WORKFLOW
+Terminal 1 = persistent info / refresh lane
+Terminal 2+ = execution and development lanes
+index = open full reference
+index 1..8 = jump to section
+index alias = show active aliases loaded in this shell
+definitions = same behavior as index
