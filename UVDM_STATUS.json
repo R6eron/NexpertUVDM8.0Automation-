@@ -31,6 +31,15 @@
       "maturity": "beta",
       "environment": "prod",
       "last_review": "2026-06-09"
+    },
+    {
+      "name": "BTC Bellwether Monitor",
+      "file": "btceasy_pivot_guard_monitor.py",
+      "maturity": "beta",
+      "environment": "prod",
+      "last_review": "2026-06-09",
+      "role": "benchmark",
+      "operational": false
     }
   ]
 }
