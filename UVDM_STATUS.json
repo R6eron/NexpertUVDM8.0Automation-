@@ -9,28 +9,32 @@
       "file": "xrpeasy_pivot_guard_fixed.py",
       "maturity": "beta",
       "environment": "prod",
-      "last_review": "2026-06-09"
+      "last_review": "2026-06-09",
+      "operational": true
     },
     {
       "name": "FLREASY Pivot Guard",
       "file": "flreasy_pivot_guard_fixed.py",
       "maturity": "beta",
       "environment": "prod",
-      "last_review": "2026-06-09"
+      "last_review": "2026-06-09",
+      "operational": true
     },
     {
       "name": "SGBEASY Pivot Guard",
       "file": "sgbeasy_pivot_guard_fixed.py",
       "maturity": "beta",
       "environment": "prod",
-      "last_review": "2026-06-09"
+      "last_review": "2026-06-09",
+      "operational": true
     },
     {
       "name": "XLMEASY Pivot Guard",
       "file": "xlmeasy_pivot_guard_fixed.py",
       "maturity": "beta",
       "environment": "prod",
-      "last_review": "2026-06-09"
+      "last_review": "2026-06-09",
+      "operational": true
     },
     {
       "name": "BTC Bellwether Monitor",
