@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from uvdm_post_fill_allocator import get_price
 from typing import Any, Dict
 
 try:
@@ -155,7 +156,14 @@ def compute_trailing_stop(
 def main() -> None:
     cfg = load_wingman_config()
 
-    entry_price = float(os.getenv("WINGMAN_ENTRY_PRICE", "0.160000"))
+    market = os.getenv("WINGMAN_MARKET", "spot").strip().lower()
+    symbol = cfg["symbol"]
+
+    if market == "spot":
+        base_url = os.getenv("BITRUE_BASE_URL", "https://openapi.bitrue.com").strip()
+        entry_price = float(get_price(base_url, symbol))
+    else:
+        raise ValueError("Futures getter not implemented yet")
     ladder = build_ladder(entry_price=entry_price, side=cfg["side"], cfg=cfg)
 
     print("[WINGMAN] Ladder preview")

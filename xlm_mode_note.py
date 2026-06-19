@@ -10,11 +10,9 @@ XLM_DEMAND_LO = 0.1585
 XLM_DEMAND_HI = 0.1605
 
 XLM_LADDER = [
-    (0.1720, "shallow"),
-    (0.1700, "shallow"),
-    (0.1680, "mid"),
-    (0.1605, "deep"),
-    (0.1585, "deep"),
+    (0.2492, "shallow"),
+    (0.2300, "mid"),
+    (0.2200, "deep"),
 ]
 
 BTC_LADDER = [
@@ -100,8 +98,8 @@ def xlm_ladder_note() -> str:
 
 def xlm_risk_doctrine() -> str:
     return (
-        "Cut: close/hedge if 0.1500 fails with volume. "
-        "Bias: CONSTRUCTIVE while 0.16-0.15 holds. "
+        "Cut: close/hedge XLM if 0.2200 fails with volume. "
+        "Bias: CONSTRUCTIVE while 0.2300-0.2200 holds. "
         "Doctrine: I do not predict; I wait for proof. "
         "I do not chase; I position at levels. "
         "I do not hope; I define invalidation first. "
@@ -111,11 +109,13 @@ def xlm_risk_doctrine() -> str:
 def xlm_risk_light(current_price: float | None) -> tuple[str, str]:
     if current_price is None:
         return "YELLOW", "XLM CAUTION: price ?; size down."
-    if current_price <= 0.1500:
-        return "RED", "XLM CUT: <=0.1500, hedge/exit."
-    if 0.1500 < current_price < 0.1600:
-        return "YELLOW", "XLM CAUTION: 0.15-0.16 band, watch tape."
-    return "GREEN", "XLM GO: above band, constructive."
+    if current_price <= 0.2200:
+        return "RED", "XLM CUT: <=0.2200, hedge/exit."
+    if 0.2200 < current_price < 0.2300:
+        return "YELLOW", "XLM CAUTION: 0.2200-0.2300, weak under soft guard."
+    if 0.2300 <= current_price < 0.2492:
+        return "YELLOW", "XLM WATCH: 0.2300-0.2492 reclaim zone, wait for proof."
+    return "GREEN", "XLM GO: >=0.2492, constructive while 0.2300-0.2200 holds."
 
 def btc_ladder_note() -> str:
     parts = []
@@ -285,8 +285,8 @@ def btc_risk_light(current_price: float | None) -> tuple[str, str]:
 
 def xlm_risk_doctrine() -> str:
     return (
-        "Cut: close/hedge XLM if 0.1500 fails with volume. "
-        "Bias: CONSTRUCTIVE while 0.16-0.15 holds. "
+        "Cut: close/hedge XLM if 0.2200 fails with volume. "
+        "Bias: CONSTRUCTIVE while 0.2300-0.2200 holds. "
         "Doctrine: I do not predict; I wait for proof. "
         "I do not chase; I position at levels. "
         "I do not hope; I define invalidation first. "
@@ -296,13 +296,13 @@ def xlm_risk_doctrine() -> str:
 def xlm_risk_light(current_price: float | None) -> tuple[str, str]:
     if current_price is None:
         return "YELLOW", "XLM CAUTION: price ?; size down."
-    if current_price <= 0.1500:
-        return "RED", "XLM CUT: <=0.1500, hedge/exit."
-    if 0.1500 < current_price < 0.1585:
-        return "YELLOW", "XLM CAUTION: 0.1500-0.1585, weak into demand."
-    if 0.1585 <= current_price <= 0.1605:
-        return "YELLOW", "XLM WATCH: 0.1585-0.1605 demand band, react not predict."
-    return "GREEN", "XLM GO: >0.1605, constructive while demand band holds as support."
+    if current_price <= 0.2200:
+        return "RED", "XLM CUT: <=0.2200, hedge/exit."
+    if 0.2200 < current_price < 0.2300:
+        return "YELLOW", "XLM CAUTION: 0.2200-0.2300, weak under soft guard."
+    if 0.2300 <= current_price < 0.2492:
+        return "YELLOW", "XLM WATCH: 0.2300-0.2492 reclaim zone, wait for proof."
+    return "GREEN", "XLM GO: >=0.2492, constructive while 0.2300-0.2200 holds."
 
 RISK_COLOR_MAP = {
     "RED": 0,
