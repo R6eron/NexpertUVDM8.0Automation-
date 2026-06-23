@@ -5,6 +5,22 @@ ABOVE_PIVOT_CONFIRMED = price clearly above pivot with stronger follow-through
 ABOVE_PIVOT_WEAK = price above pivot, but confirmation is still weak
 AT_PIVOT_ZONE = price sitting near pivot decision area
 BELOW_PIVOT_WEAK = price below pivot, but not decisively broken
+e" "constructive move with enough strength"
+    printf "  ${YELLOW}%-24s${NC} %s
+" "positive_weak" "constructive, but lacking strong confirmation"
+    printf "  ${YELLOW}%-24s${NC} %s
+" "neutral" "no clear directional follow-through"
+    printf "  ${YELLOW}%-24s${NC} %s
+" "negative_weak" "soft downside pressure"
+    printf "  ${YELLOW}%-24s${NC} %s
+" "negative" "confirmed downside pressure"
+    printf "
+"
+  } | less -R
+}bash -n "$HOME/.bash_aliases" && echo OK
+source "$HOME/.bash_aliases"
+
+definitions     # should show a colored, aligned view
 BELOW_PIVOT_CONFIRMED = price below pivot with stronger negative follow-through
 
 [2] FOLLOW_THRU
