@@ -1,0 +1,25 @@
+def normalize_execute_text(text: str) -> str:
+    cleaned = "".join(ch for ch in text.lower() if ch.isalnum())
+    return cleaned
+
+def prompt_execute(question: str, voice_control: bool = False) -> bool:
+    while True:
+        if voice_control:
+            speak(question + " Say execute to confirm, sir.")
+            try:
+                raw = subprocess.getoutput("termux-speech-to-text")
+            except Exception:
+                print("Voice input unavailable; please type EXECUTE, sir.")
+                speak("Voice input unavailable; please type execute, sir.")
+                raw = input(f"{question} Type EXECUTE to proceed: ").strip()
+        else:
+            speak(question + " Type execute to confirm, sir.")
+            raw = input(f"{question} Type EXECUTE to proceed: ").strip()
+
+        if normalize_execute_text(raw) == "execute":
+            print("Final execution phrase confirmed, sir.")
+            speak("Execution phrase confirmed, sir.")
+            return True
+
+        print("Final confirmation requires the exact word EXECUTE, sir.")
+        speak("Final confirmation requires the exact word execute, sir.")

@@ -1,0 +1,48 @@
+    for i in range(1, user.confirms + 1):
+        if i < user.confirms:
+            q = f"Confirmation {i} of {user.confirms}: are you sure, sir?"
+            if not prompt_yes_no(q):
+                print()
+                print("Understood, sir. I will NOT execute this instruction.")
+                speak("Understood, sir. I will not execute this instruction.")
+                log_event(
+                    user, identity, portfolio, symbol, side, notional,
+                    "cancelled", f"User declined at confirmation {i}", limit_value,
+                    extra={
+                        "mode": mode_label,
+                        "leverage": leverage,
+                        "margin_required": margin_required,
+                        "ladder_rungs": ladder_rungs,
+                        "ladder_prices": ladder_prices,
+                        "tp_ladder_allocations": tp_rungs,
+                        "anchor_price": anchor_price,
+                        "spacing_pct": spacing_pct,
+                    },
+                )
+                return
+            if user.cooldown > 0:
+                time.sleep(user.cooldown)
+        else:
+            q = f"Confirmation {i} of {user.confirms}: this will be your final answer, sir."
+            if not prompt_execute(q, voice_control=False):
+                print()
+                print("Understood, sir. Final EXECUTE phrase not given. I will NOT execute this instruction.")
+                speak("Understood, sir. Final execute phrase not given. I will not execute this instruction.")
+                log_event(
+                    user, identity, portfolio, symbol, side, notional,
+                    "cancelled", "User did not provide EXECUTE phrase at final confirmation", limit_value,
+                    extra={
+                        "mode": mode_label,
+                        "leverage": leverage,
+                        "margin_required": margin_required,
+                        "ladder_rungs": ladder_rungs,
+                        "ladder_prices": ladder_prices,
+                        "tp_ladder_allocations": tp_rungs,
+                        "anchor_price": anchor_price,
+                        "spacing_pct": spacing_pct,
+                    },
+                )
+                return
+
+    print()
+    print("Executing now, sir...")
