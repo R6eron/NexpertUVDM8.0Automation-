@@ -1,0 +1,53 @@
+[
+  {
+    "id": "XLM_LPS_PHASE_D",
+    "phase": "Phase D",
+    "structure_type": "Accumulation",
+    "event_code": "LPS",
+    "event_name": "Last Point of Support",
+    "acronym": "LPS (Last Point of Support)",
+    "description": "Higher low on the back-up to the edge of the creek after a Sign of Strength, with narrowing spread and reduced volume confirming demand control.",
+    "event_sequence_hint": ["SOS", "BUEC", "LPS"],
+    "action_tag": "LPS_DEPLOY_ZONE",
+    "allowed_actions": [
+      "Ladder spot buys in defined LPS band",
+      "Maintain futures overlay; derisk only at TP1/TP2",
+      "Place stops below LPS low / creek support"
+    ],
+    "risk_notes": "Treat as A-Class long area; size according to volatility and distance to LPS low."
+  },
+  {
+    "id": "GENERIC_BUEC_ACCUM_D",
+    "phase": "Phase D",
+    "structure_type": "Accumulation",
+    "event_code": "BUEC",
+    "event_name": "Back-Up to Edge of Creek",
+    "acronym": "BU/E/C (Back-Up to Edge of Creek)",
+    "description": "Pullback from a Sign of Strength into the breakout zone, retesting prior resistance as new support, often on declining volume and narrower spreads.",
+    "event_sequence_hint": ["SOS", "BUEC", "LPS"],
+    "action_tag": "BUEC_TEST_ZONE",
+    "allowed_actions": [
+      "Monitor behaviour of pullback; no full-size entries until LPS is confirmed",
+      "Prepare ladder levels within the back-up band",
+      "Stand aside if back-up re-enters and fails the creek"
+    ],
+    "risk_notes": "Back-up may fail and drop back into the creek; treat as test zone."
+  },
+  {
+    "id": "GENERIC_UTAD_DIST_E",
+    "phase": "Phase E",
+    "structure_type": "Distribution",
+    "event_code": "UTAD",
+    "event_name": "Upthrust After Distribution",
+    "acronym": "UTAD (Upthrust After Distribution)",
+    "description": "Climactic push above resistance in a distribution range, followed by swift rejection and entry back into the structure.",
+    "event_sequence_hint": ["UTAD", "BREAK", "TEST"],
+    "action_tag": "UTAD_REVERSAL_ZONE",
+    "allowed_actions": [
+      "Stand aside on fresh longs",
+      "Allow shorts to engage once break and test confirm",
+      "Use rallies back towards UTAD for risk-controlled exits"
+    ],
+    "risk_notes": "Aggressive fading of UTAD carries high risk; confirmation is required."
+  }
+]
