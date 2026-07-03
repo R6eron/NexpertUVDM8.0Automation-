@@ -1,32 +1,106 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 
 USERS_FILE = Path("wingman_users.json")
 PORTFOLIO_FILE = Path("portfolio_context.json")
+PREFS_FILE = Path("wingman_prefs.json")
 
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def load_users():
-    if USERS_FILE.exists():
+def load_json_file(path, default):
+    if path.exists():
         try:
-            return json.loads(USERS_FILE.read_text())
+            return json.loads(path.read_text())
         except Exception:
-            return {}
-    return {}
+            return default
+    return default
+
+
+def save_json_file(path, data):
+    path.write_text(json.dumps(data, indent=2, sort_keys=True))
+
+
+def load_users():
+    return load_json_file(USERS_FILE, {})
 
 
 def save_users(data):
-    USERS_FILE.write_text(json.dumps(data, indent=2, sort_keys=True))
+    save_json_file(USERS_FILE, data)
 
 
-def ask(prompt, default=""):
-    raw = input(f"{prompt}" + (f" [{default}]" if default else "") + ": ").strip()
+def load_prefs():
+    return load_json_file(
+        PREFS_FILE,
+        {
+            "voice_enabled": True,
+            "voice_rate": "0.92",
+            "voice_pitch": "1.0",
+            "voice_engine": "",
+            "voice_stream": "",
+        },
+    )
+
+
+def save_prefs(data):
+    save_json_file(PREFS_FILE, data)
+
+
+def detect_tts_engine():
+    prefs = load_prefs()
+    if prefs.get("voice_engine"):
+        return prefs["voice_engine"]
+    try:
+        out = subprocess.check_output(["termux-tts-engines"], text=True)
+        if "com.google.android.tts" in out:
+            return "com.google.android.tts"
+    except Exception:
+        pass
+    return None
+
+
+def speak(text):
+    prefs = load_prefs()
+    if not prefs.get("voice_enabled", True):
+        return
+    try:
+        cmd = [
+            "termux-tts-speak",
+            "-r", str(prefs.get("voice_rate", "0.92")),
+            "-p", str(prefs.get("voice_pitch", "1.0")),
+        ]
+        engine = detect_tts_engine()
+        if engine:
+            cmd += ["-e", engine]
+        stream = str(prefs.get("voice_stream", "")).strip()
+        if stream:
+            cmd += ["-s", stream]
+        cmd.append(text)
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    except Exception:
+        pass
+
+
+def ask(prompt, default="", why=""):
+    audible = prompt
+    if why:
+        audible += f". {why}"
+    if default:
+        audible += f". Default is {default}."
+    print(f"[voice] {audible}")
+    speak(audible)
+    try:
+        raw = input(f"{prompt}" + (f" [{default}]" if default else "") + ": ").strip()
+    except KeyboardInterrupt:
+        print("\
+cancelled")
+        raise SystemExit(130)
     return raw if raw else default
 
 
@@ -36,7 +110,6 @@ def user_add_cli(args):
     if not alias:
         print("alias required")
         return 1
-
     prev = data.get(alias, {})
     data[alias] = {
         "alias": alias,
@@ -57,7 +130,6 @@ def user_show_cli(args):
             return 1
         print(json.dumps(item, indent=2, sort_keys=True))
         return 0
-
     print(json.dumps(data, indent=2, sort_keys=True))
     return 0
 
@@ -129,14 +201,34 @@ def portfolio_cli(args):
     if not PORTFOLIO_FILE.exists():
         print(f"portfolio file not found -> {PORTFOLIO_FILE}")
         return 1
-
     try:
         data = json.loads(PORTFOLIO_FILE.read_text())
     except Exception as e:
         print(f"failed to read {PORTFOLIO_FILE}: {e}")
         return 1
-
     print(json.dumps(data, indent=2, sort_keys=True))
+    return 0
+
+
+def voice_cli(args):
+    prefs = load_prefs()
+    if args.enable:
+        prefs["voice_enabled"] = True
+    if args.disable:
+        prefs["voice_enabled"] = False
+    if args.rate:
+        prefs["voice_rate"] = str(args.rate)
+    if args.pitch:
+        prefs["voice_pitch"] = str(args.pitch)
+    if args.engine is not None:
+        prefs["voice_engine"] = args.engine
+    if args.stream is not None:
+        prefs["voice_stream"] = args.stream
+    save_prefs(prefs)
+    if args.test:
+        speak(args.test)
+        print("voice test sent")
+    print(json.dumps(prefs, indent=2, sort_keys=True))
     return 0
 
 
@@ -170,6 +262,16 @@ def build_parser():
 
     portfolio = sub.add_parser("portfolio")
     portfolio.set_defaults(func=portfolio_cli)
+
+    voice = sub.add_parser("voice")
+    voice.add_argument("--enable", action="store_true")
+    voice.add_argument("--disable", action="store_true")
+    voice.add_argument("--rate")
+    voice.add_argument("--pitch")
+    voice.add_argument("--engine", nargs="?", const="")
+    voice.add_argument("--stream", nargs="?", const="")
+    voice.add_argument("--test")
+    voice.set_defaults(func=voice_cli)
 
     return parser
 

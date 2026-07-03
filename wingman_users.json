@@ -31,6 +31,70 @@
     },
     "updated_at": "2026-07-03T01:54:03.010476Z"
   },
+  "Ron": {
+    "capital_risk": {
+      "comfortable_max_drawdown_pct": "100",
+      "hard_daily_loss_limit": "500",
+      "max_leverage": "10x",
+      "total_trading_capital_usdt": "30k",
+      "typical_deploy_per_campaign_pct": "upto 2k"
+    },
+    "goals_3_6_months": {
+      "education_goal": "trading mastery",
+      "outcome_goal": "core growth",
+      "process_goal": "perfect execution"
+    },
+    "identity": {
+      "alias": "Ron",
+      "devices": "andriod",
+      "platforms": "nexo bitrue bifrost",
+      "time_zone": "uk"
+    },
+    "psychology": {
+      "biggest_recurring_issue": "no stoploss",
+      "current_journaling_habit": "daily",
+      "recent_by_the_book_trade": "10k",
+      "recent_painful_trade": "3k"
+    },
+    "style_assets": {
+      "main_instruments": "xlm flr sgb",
+      "preferred_patterns": "extreme hi liquidity",
+      "timeframes": "4 8 12 24hr"
+    },
+    "updated_at": "2026-07-03T04:08:50.280121Z"
+  },
+  "cd ~/NexpertUVDM-Automation": {
+    "capital_risk": {
+      "comfortable_max_drawdown_pct": "from datetime import datetime, timezone",
+      "hard_daily_loss_limit": "from pathlib import Path",
+      "max_leverage": "import subprocess",
+      "total_trading_capital_usdt": "import argparse",
+      "typical_deploy_per_campaign_pct": "import json"
+    },
+    "goals_3_6_months": {
+      "education_goal": "def load_users():",
+      "outcome_goal": "",
+      "process_goal": ""
+    },
+    "identity": {
+      "alias": "cd ~/NexpertUVDM-Automation",
+      "devices": "#!/usr/bin/env python3",
+      "platforms": "cat <<'PY' > wingman_cli.py",
+      "time_zone": ""
+    },
+    "psychology": {
+      "biggest_recurring_issue": "",
+      "current_journaling_habit": "return datetime.now(timezone.utc).isoformat().replace(\"+00:00\", \"Z\")",
+      "recent_by_the_book_trade": "def utc_now():",
+      "recent_painful_trade": ""
+    },
+    "style_assets": {
+      "main_instruments": "",
+      "preferred_patterns": "PORTFOLIO_FILE = Path(\"portfolio_context.json\")",
+      "timeframes": "USERS_FILE = Path(\"wingman_users.json\")"
+    },
+    "updated_at": "2026-07-03T04:01:01.165965Z"
+  },
   "users": [
     {
       "digital_immortal_number": "001",
