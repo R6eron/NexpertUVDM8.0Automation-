@@ -1,0 +1,154 @@
+{
+  "R6eron": {
+    "capital_risk": {
+      "comfortable_max_drawdown_pct": "50",
+      "hard_daily_loss_limit": "500",
+      "max_leverage": "10 x",
+      "total_trading_capital_usdt": "2000",
+      "typical_deploy_per_campaign_pct": "500/2k"
+    },
+    "goals_3_6_months": {
+      "education_goal": "trading mastery self mastery",
+      "outcome_goal": "long term growth",
+      "process_goal": "perfect execution"
+    },
+    "identity": {
+      "alias": "R6eron",
+      "devices": "Andriod",
+      "platforms": "Bitrue nexo bifrost",
+      "time_zone": "London"
+    },
+    "psychology": {
+      "biggest_recurring_issue": "no stop",
+      "current_journaling_habit": "daily",
+      "recent_by_the_book_trade": "10k",
+      "recent_painful_trade": "3k"
+    },
+    "style_assets": {
+      "main_instruments": "spot Xlm FLR Sgb",
+      "preferred_patterns": "Extreme value liquidity",
+      "timeframes": "2 4 8 12 24"
+    },
+    "updated_at": "2026-07-03T01:54:03.010476Z"
+  },
+  "users": [
+    {
+      "digital_immortal_number": "001",
+      "dob": "25/06/1986",
+      "enabled_exchanges": [
+        "Bitrue",
+        "MEXC",
+        "NEXO",
+        "Bifrost",
+        "Kraken",
+        "Coinbase",
+        "Uphold",
+        "Bybit",
+        "KuCoin",
+        "OKX",
+        "GateIO",
+        "Gemini"
+      ],
+      "exchange_accounts": [
+        {
+          "enabled": true,
+          "exchange_id": "Bitrue",
+          "permissions": [
+            "read"
+          ],
+          "role": "execution"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "MEXC",
+          "permissions": [
+            "read"
+          ],
+          "role": "price_fallback"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "NEXO",
+          "permissions": [
+            "read"
+          ],
+          "role": "yield"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "Bifrost",
+          "permissions": [
+            "read"
+          ],
+          "role": "yield"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "Kraken",
+          "permissions": [
+            "read"
+          ],
+          "role": "execution_backup"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "Coinbase",
+          "permissions": [
+            "read"
+          ],
+          "role": "execution_backup"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "Uphold",
+          "permissions": [
+            "read"
+          ],
+          "role": "execution_backup"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "Bybit",
+          "permissions": [
+            "read"
+          ],
+          "role": "execution_backup"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "KuCoin",
+          "permissions": [
+            "read"
+          ],
+          "role": "price_fallback"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "OKX",
+          "permissions": [
+            "read"
+          ],
+          "role": "execution_backup"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "GateIO",
+          "permissions": [
+            "read"
+          ],
+          "role": "execution_backup"
+        },
+        {
+          "enabled": true,
+          "exchange_id": "Gemini",
+          "permissions": [
+            "read"
+          ],
+          "role": "execution_backup"
+        }
+      ],
+      "full_name": "Hex Pilot",
+      "phone": "+44..."
+    }
+  ]
+}
