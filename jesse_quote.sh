@@ -2,16 +2,15 @@
 set -e
 
 VOICE_FILE="./voice/jesse_catchphrases.txt"
-FALLBACK="./jesse_vocab.txt"
+FALLBACK="$HOME/jesse_vocab.txt"
 
 if [ -r "$VOICE_FILE" ]; then
-    QUOTE="$(shuf -n 1 "$VOICE_FILE")"
+    QUOTE="$(grep -v '^[[:space:]]*$' "$VOICE_FILE" | shuf -n 1)"
 elif [ -r "$FALLBACK" ]; then
-    QUOTE="$(shuf -n 1 "$FALLBACK")"
+    QUOTE="$(grep -v '^[[:space:]]*$' "$FALLBACK" | shuf -n 1)"
 else
     QUOTE="Wing-man Jesse quote library not found."
 fi
 
-# Use tuned Wing-man Google TTS profile via the CLI
 cd "$HOME/NexpertUVDM-Automation"
 python wingman_cli.py voice --test "$QUOTE"
