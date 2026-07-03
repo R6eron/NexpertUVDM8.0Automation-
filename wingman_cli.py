@@ -5,6 +5,11 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 USERS_FILE = Path("wingman_users.json")
+PORTFOLIO_FILE = Path("portfolio_context.json")
+
+
+def utc_now():
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def load_users():
@@ -35,7 +40,7 @@ def user_add_cli(args):
     prev = data.get(alias, {})
     data[alias] = {
         "alias": alias,
-        "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "updated_at": utc_now(),
         "notes": args.notes or prev.get("notes", ""),
     }
     save_users(data)
@@ -82,7 +87,7 @@ def trading_brief_cli(args):
     goals = prev.get("goals_3_6_months", {})
 
     brief = {
-        "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "updated_at": utc_now(),
         "identity": {
             "alias": alias,
             "time_zone": ask("Time zone", identity.get("time_zone", "")),
@@ -120,6 +125,21 @@ def trading_brief_cli(args):
     return 0
 
 
+def portfolio_cli(args):
+    if not PORTFOLIO_FILE.exists():
+        print(f"portfolio file not found -> {PORTFOLIO_FILE}")
+        return 1
+
+    try:
+        data = json.loads(PORTFOLIO_FILE.read_text())
+    except Exception as e:
+        print(f"failed to read {PORTFOLIO_FILE}: {e}")
+        return 1
+
+    print(json.dumps(data, indent=2, sort_keys=True))
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="./wingman_cli.py")
     sub = parser.add_subparsers(dest="topic", required=True)
@@ -147,6 +167,9 @@ def build_parser():
 
     brief = sub.add_parser("brief")
     brief.set_defaults(func=trading_brief_cli)
+
+    portfolio = sub.add_parser("portfolio")
+    portfolio.set_defaults(func=portfolio_cli)
 
     return parser
 

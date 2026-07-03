@@ -1,0 +1,28 @@
+{
+  "portfolio": {
+    "total_balance_usdt_raw": "30,000",
+    "total_balance_usdt": 30000.0,
+    "spot_value_usdt_raw": "22000",
+    "spot_value_usdt": 22000.0,
+    "futures_equity_usdt_raw": "8000",
+    "futures_equity_usdt": 8000.0,
+    "futures_margin_used_raw": "1318",
+    "futures_margin_used_usdt": 1318.0,
+    "futures_margin_available_raw": "682",
+    "futures_margin_available_usdt": 682.0
+  },
+  "risk_framework": {
+    "max_portfolio_risk_raw": "2k at 30,000",
+    "max_portfolio_risk_usdt": 2000.0,
+    "current_trade_risk_raw": "682 usdt that I'm willing risk",
+    "current_trade_risk_usdt": 682.0,
+    "risk_pct_of_portfolio": 6.67
+  },
+  "normalization": {
+    "needs_follow_up": [],
+    "assumptions": [
+      "Interpreted '2k' as 2000 USDT",
+      "Interpreted '10 x' as 10 leverage"
+    ]
+  }
+}
