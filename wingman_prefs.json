@@ -1,7 +1,7 @@
 {
   "voice_enabled": true,
-  "voice_engine": "",
-  "voice_pitch": "1.0",
-  "voice_rate": "0.92",
+  "voice_engine": "com.google.android.tts",
+  "voice_pitch": "0.78",
+  "voice_rate": "0.86",
   "voice_stream": ""
 }
