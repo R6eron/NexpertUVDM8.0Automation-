@@ -40,8 +40,8 @@ assets = {
     "PAXG_SPOT":     {"px": 4701.2900000, "high": 4711.6100000},
 }
 
-print(c("#UVDM Wingman TM", CYAN, True))
-print(c("Digital Immortal number 001", CYAN))
+print(c("Wingman TM", CYAN, True))
+print(c("Digital Immortal 001", CYAN))
 print()
 
 print(c("LIVE INPUTS", CYAN, True))
