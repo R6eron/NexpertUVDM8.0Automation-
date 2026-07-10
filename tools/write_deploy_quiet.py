@@ -1,0 +1,158 @@
+from pathlib import Path
+
+content = r'''#!/usr/bin/env bash
+set -euo pipefail
+
+BASE="${HOME}/NexpertUVDM-Automation"
+RUNTIME="${BASE}/runtime"
+ALERTS="${RUNTIME}/alerts.json"
+WATCHER="${BASE}/tools/uvdm_voice_watch.py"
+BACKUP="${BASE}/tools/uvdm_backup_runtime.sh"
+TMPDIR_SAFE="${RUNTIME}/tmp"
+WATCH_OUT="${TMPDIR_SAFE}/uvdm_deploy_watch.out"
+BACKUP_OUT="${TMPDIR_SAFE}/uvdm_deploy_backup.out"
+
+mkdir -p "$RUNTIME" "$TMPDIR_SAFE"
+
+if [ -t 1 ]; then
+  C_RESET=$'\u001B[0m'
+  C_RED=$'\u001B[31m'
+  C_GREEN=$'\u001B[32m'
+  C_YELLOW=$'\u001B[33m'
+  C_BLUE=$'\u001B[34m'
+  C_MAGENTA=$'\u001B[35m'
+  C_CYAN=$'\u001B[36m'
+  C_BOLD=$'\u001B[1m'
+else
+  C_RESET=''
+  C_RED=''
+  C_GREEN=''
+  C_YELLOW=''
+  C_BLUE=''
+  C_MAGENTA=''
+  C_CYAN=''
+  C_BOLD=''
+fi
+
+say() { printf '%b
+' "$*"; }
+lower() { printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]'; }
+upper() { printf '%s' "${1:-}" | tr '[:lower:]' '[:upper:]'; }
+
+amount=""
+asset=""
+mode=""
+lev=""
+operator_action="SCALE_IN_SMALL"
+
+if [ "$#" -eq 0 ]; then
+  say "${C_YELLOW}deploy:${C_RESET} interactive menu not yet wired."
+  say "Use: deploy 58 xlm futures 10x"
+  exit 0
+fi
+
+orig_cmd="deploy $*"
+
+for tok in "$@"; do
+  ltok="$(lower "$tok")"
+  if [[ "$ltok" =~ ^([0-9]+(.[0-9]+)?)x$ ]]; then
+    lev="$ltok"
+    continue
+  fi
+  case "$ltok" in
+    f|futures|future|ft)
+      mode="futures"
+      continue
+      ;;
+    spot)
+      mode="spot"
+      continue
+      ;;
+  esac
+  case "$ltok" in
+    xlm|xrp|btc|eth)
+      asset="$ltok"
+      continue
+      ;;
+  esac
+  if [[ "$ltok" =~ ^[0-9]+(.[0-9]+)?$ ]]; then
+    amount="$ltok"
+    continue
+  fi
+done
+
+if [ -z "$amount" ]; then
+  say "${C_RED}Amount not understood.${C_RESET} Example: deploy 58 xlm futures 10x"
+  exit 1
+fi
+if [ -z "$asset" ]; then
+  say "${C_RED}Asset not understood.${C_RESET} Example: deploy 58 xlm futures 10x"
+  exit 1
+fi
+if [ -z "$mode" ]; then
+  say "${C_RED}Mode not understood.${C_RESET} Use: f, futures, or spot."
+  exit 1
+fi
+if [ -z "$lev" ]; then
+  say "${C_RED}Leverage not understood.${C_RESET} Use e.g. 10x, 7x, 5x, 1x."
+  exit 1
+fi
+
+if awk "BEGIN {exit !($amount >= 1000)}"; then
+  operator_action="SCALE_IN_MEDIUM"
+fi
+
+asset_up="$(upper "$asset")"
+request_id="$(date -u +'%Y%m%dT%H%M%SZ')"
+
+if [ -x "$BACKUP" ]; then
+  "$BACKUP" >"$BACKUP_OUT" 2>&1 || true
+  last_backup="$(tail -n 1 "$BACKUP_OUT" 2>/dev/null || true)"
+  [ -n "$last_backup" ] && say "${C_BLUE}${last_backup}${C_RESET}"
+fi
+
+cat > "$ALERTS" <<JSON
+{
+  "status": "execute_ready",
+  "message": "",
+  "asset": "$asset_up",
+  "setup": "MANUAL_DEPLOY",
+  "level": "$amount",
+  "regime": "manual",
+  "voice_cmd": "$orig_cmd",
+  "operator_action": "$operator_action",
+  "request_id": "$request_id",
+  "mode": "$mode",
+  "leverage": "$lev"
+}
+JSON
+
+say "${C_GREEN}${C_BOLD}deploy_ready:${C_RESET} ${C_CYAN}$amount${C_RESET} ${C_BOLD}$asset_up${C_RESET} ${C_MAGENTA}$mode${C_RESET} ${C_YELLOW}$lev${C_RESET}"
+
+python3 "$WATCHER" \
+  --dry-run \
+  --auto-on-execute-ready \
+  --trigger-on-start \
+  --oneshot >"$WATCH_OUT" 2>&1 || true
+
+say "${C_BOLD}1)${C_RESET} ${C_GREEN}single shot${C_RESET}"
+say "${C_BOLD}2)${C_RESET} ${C_YELLOW}limit ladder${C_RESET}"
+read -r -p "Select 1 or 2: " choice
+
+case "$choice" in
+  1)
+    say "${C_GREEN}mode_selected=single_shot${C_RESET}"
+    say "${C_GREEN}single_shot_payload=${amount} ${asset_up} ${mode} ${lev}${C_RESET}"
+    ;;
+  2)
+    say "${C_YELLOW}mode_selected=limit_ladder${C_RESET}"
+    say "${C_YELLOW}limit_ladder_payload=${amount} ${asset_up} ${mode} ${lev}${C_RESET}"
+    ;;
+  *)
+    say "${C_RED}Input not understood.${C_RESET} Use: 1 for single shot, 2 for limit ladder."
+    exit 1
+    ;;
+esac
+'''
+Path('tools/deploy').write_text(content, encoding='utf-8')
+print('WROTE tools/deploy')

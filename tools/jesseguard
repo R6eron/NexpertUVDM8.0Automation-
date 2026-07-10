@@ -1,0 +1,39 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+ROOT="$HOME/NexpertUVDM-Automation"
+ALERTS="$ROOT/runtime/alerts.json"
+STATE="$ROOT/runtime/voice_watch_state.json"
+
+msg() {
+    python3 - "$ALERTS" "$STATE" <<'PY'
+import json, sys
+from pathlib import Path
+alerts = {}
+state = {}
+try:
+    alerts = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+except Exception:
+    pass
+try:
+    state = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))
+except Exception:
+    pass
+status = alerts.get("status","")
+setup = alerts.get("setup","")
+voice = alerts.get("voice_cmd","")
+watch = state.get("last_message","")
+
+quotes = []
+if "position_live" in status:
+    quotes.append("A loss never bothers me after I take it; I forget it overnight.")
+    quotes.append("The big money is not in the buying and selling, but in the waiting.")
+if "deploy" in voice.lower():
+    quotes.append("It was never my thinking that made the big money for me. It was my sitting.")
+if "hold" in watch.lower():
+    quotes.append("Markets are never wrong; opinions often are.")
+if not quotes:
+    quotes.append("There is nothing new on Wall Street. There can't be because speculation is as old as the hills.")
+print(quotes[0])
+PY
+}
+msg
