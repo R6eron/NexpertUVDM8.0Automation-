@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-UVDM Checkpoint & Voice Assist - Personal & Livermore-style
+UVDM Checkpoint & Voice Assist with actual speech
 """
 
 import sys
 from datetime import datetime
 from pathlib import Path
+import subprocess
 
 RUNTIME = Path.home() / ".config" / "uvdm" / "runtime"
 RUNTIME.mkdir(parents=True, exist_ok=True)
@@ -21,25 +22,34 @@ def log(message: str, level: str = "INFO"):
     print(entry)
 
 
+def speak(text: str):
+    """Actual Termux TTS"""
+    try:
+        subprocess.run(["termux-tts-speak", "-r", "1.0", text], check=True, timeout=8)
+    except:
+        print("(TTS not available - printing only)")
+
+
 def voice_assist(status: str, message: str):
-    """Personal, Livermore-inspired voice output"""
     if status.lower() == "pass":
         log(f"✅ VOICE ASSIST PASSED: {message}", "PASS")
+        speak(f"Well done, Ron. {message}.")
         print(f"\nWell done, Ron. {message}.")
         print("You're obeying the tape like a true speculator. The plan is holding.")
         print("Keep the faith in the process. The market rewards patience.\n")
     elif status.lower() == "fail":
         log(f"❌ VOICE ASSIST FAILED: {message}", "FAIL")
+        speak(f"Steady, Ron. {message}.")
         print(f"\nSteady, Ron. {message}.")
         print("Don't let emotion pull you off the rails. Return to the plan you wrote when calm.")
         print("Remember: The tape is the sole source of truth. We obey. We do not argue.\n")
     else:
         log(f"ℹ️ VOICE ASSIST: {message}", "INFO")
+        speak(f"Note for you, Ron: {message}")
         print(f"\nNote for you, Ron: {message}\n")
 
 
 def run_basic_tests():
-    """Run automatic tests with personal tone"""
     print("\n=== UVDM Automatic Self-Test ===")
     print("Checking the machine, Ron...\n")
     
@@ -73,6 +83,7 @@ def run_basic_tests():
     
     if tests_failed == 0:
         print("\n✅ All systems look good, Ron. You're maintaining discipline well.")
+        speak("All systems look good, Ron. You're maintaining discipline well.")
         print("Process over outcome. Keep going.\n")
     else:
         print("\n⚠️ A few things need attention. Let's stay on top of it, Ron.\n")
