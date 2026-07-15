@@ -1,3 +1,4 @@
+cat > ~/NexpertUVDM-Automation/tools/uvdm_live.py <<'EOF'
 #!/usr/bin/env python3
 import sys, os, json, time, hmac, hashlib, urllib.request, subprocess, shutil
 from decimal import Decimal, ROUND_DOWN
@@ -14,10 +15,15 @@ def c(code, text): return f"\u001B[{code}m{text}\u001B[0m"
 def speak(msg: str):
     try:
         subprocess.run(["termux-tts-speak", msg], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception: pass
+    except Exception:
+        pass
 
 def strip_ansi(text: str) -> str:
-    for seq in ["\u001B[0m", "\u001B[31m", "\u001B[32m", "\u001B[33m", "\u001B[35m", "\u001B[36m", "\u001B[37m", "\u001B[1m", "\u001B[1;31m", "\u001B[1;33m", "\u001B[1;35m", "\u001B[1;36m", "\u001B[1;37m"]:
+    for seq in [
+        "\u001B[0m", "\u001B[31m", "\u001B[32m", "\u001B[33m", "\u001B[35m",
+        "\u001B[36m", "\u001B[37m", "\u001B[1m", "\u001B[1;31m", "\u001B[1;33m",
+        "\u001B[1;35m", "\u001B[1;36m", "\u001B[1;37m"
+    ]:
         text = text.replace(seq, "")
     return text
 
@@ -32,36 +38,50 @@ def put(label, value):
 
 def jget(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=8) as r: return json.loads(r.read().decode())
+    with urllib.request.urlopen(req, timeout=8) as r:
+        return json.loads(r.read().decode())
 
 def get_live_price(asset: str):
     symbol = f"{asset.upper()}USDT"
-    urls = [f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}", f"https://api.mexc.com/api/v3/ticker/price?symbol={symbol}"]
-    for url in urls:
-        try:
-            data = jget(url)
-            if "price" in data: return Decimal(str(data["price"])), url
-        except Exception: pass
+    url = f"https://api.mexc.com/api/v3/ticker/price?symbol={symbol}"
+    try:
+        data = jget(url)
+        if "price" in data:
+            return Decimal(str(data["price"])), url
+    except Exception:
+        pass
     return None, None
 
 def get_reference_anchor(asset: str):
     path = Path.home() / ".config" / "uvdm" / "runtime" / "anchors.json"
     if path.exists():
         try:
-            with open(path) as f: data = json.load(f)
-            if asset.upper() in data: return Decimal(str(data[asset.upper()]))
-        except Exception: pass
-    fallback = {"XLM": "0.19", "XRP": "0.50", "BTC": "100000", "ETH": "3000", "SOL": "150", "DOGE": "0.12", "ADA": "0.60", "HBAR": "0.08", "FLR": "0.02"}
+            with open(path) as f:
+                data = json.load(f)
+            if asset.upper() in data:
+                return Decimal(str(data[asset.upper()]))
+        except Exception:
+            pass
+    fallback = {
+        "XLM": "0.19", "XRP": "0.50", "BTC": "100000", "ETH": "3000",
+        "SOL": "150", "DOGE": "0.12", "ADA": "0.60", "HBAR": "0.08", "FLR": "0.02"
+    }
     return Decimal(fallback.get(asset.upper(), "1.0"))
 
 def movement_voice(asset: str, live_price: Decimal, anchor: Decimal, strategy: str):
-    if anchor <= 0: return f"Ron. {asset} live price ready."
+    if anchor <= 0:
+        return f"Ron. {asset} live price ready."
     delta = ((live_price / anchor) - Decimal("1")) * Decimal("100")
-    if delta >= Decimal("2.0"): msg = f"{asset} has pushed up and is trading strong."
-    elif delta > Decimal("0.25"): msg = f"{asset} is sideways and slightly up."
-    elif delta <= Decimal("-2.0"): msg = f"{asset} is under pressure and trading below anchor."
-    elif delta < Decimal("-0.25"): msg = f"{asset} is sideways and slightly down."
-    else: msg = f"{asset} is flat around anchor."
+    if delta >= Decimal("2.0"):
+        msg = f"{asset} has pushed up and is trading strong."
+    elif delta > Decimal("0.25"):
+        msg = f"{asset} is sideways and slightly up."
+    elif delta <= Decimal("-2.0"):
+        msg = f"{asset} is under pressure and trading below anchor."
+    elif delta < Decimal("-0.25"):
+        msg = f"{asset} is sideways and slightly down."
+    else:
+        msg = f"{asset} is flat around anchor."
     plan_msg = "Limit ladder ready." if strategy == "ladder" else "Single shot ready."
     return f"Ron. {msg} {plan_msg}"
 
@@ -70,15 +90,53 @@ def sign_headers(method, path, body=None):
     body_str = json.dumps(body, separators=(",", ":")) if body else ""
     payload = f"{ts}{method.upper()}{path}{body_str}"
     sig = hmac.new(API_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    return {"Content-Type": "application/json", "X-CH-APIKEY": API_KEY, "X-CH-TS": ts, "X-CH-SIGN": sig}
+    return {
+        "Content-Type": "application/json",
+        "X-CH-APIKEY": API_KEY,
+        "X-CH-TS": ts,
+        "X-CH-SIGN": sig
+    }
 
 def place_order(cname, side, qty, price, leverage, live=False):
-    body = {"contractName": cname, "side": side, "type": "LIMIT", "positionType": 1, "open": "OPEN", "volume": float(qty), "price": float(price), "leverage": int(leverage.replace("x", ""))}
-    if not live: return {"dry_run": True, "body": body}
+    body = {
+        "contractName": cname,
+        "side": side,
+        "type": "LIMIT",
+        "positionType": 1,
+        "open": "OPEN",
+        "volume": float(qty),
+        "price": float(price),
+        "leverage": int(leverage.replace("x", ""))
+    }
+    if not live:
+        return {"dry_run": True, "body": body}
     try:
-        req = urllib.request.Request("https://fapi.bitrue.com/fapi/v2/order", data=json.dumps(body).encode(), headers=sign_headers("POST", "/fapi/v2/order", body), method="POST")
-        with urllib.request.urlopen(req, timeout=10) as r: return json.loads(r.read().decode())
-    except Exception as e: return {"error": str(e)}
+        req = urllib.request.Request(
+            "https://fapi.bitrue.com/fapi/v2/order",
+            data=json.dumps(body, separators=(",", ":")).encode(),
+            headers=sign_headers("POST", "/fapi/v2/order", body),
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return json.loads(r.read().decode())
+    except Exception as e:
+        return {"error": str(e)}
+
+def q8(x):
+    return x.quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
+
+def dynamic_step(price: Decimal, anchor: Decimal) -> Decimal:
+    base = Decimal("0.0025")
+    if anchor <= 0:
+        return base
+    dislocation = abs((price / anchor) - Decimal("1"))
+    if dislocation >= Decimal("0.08"):
+        return Decimal("0.0040")
+    if dislocation >= Decimal("0.05"):
+        return Decimal("0.0035")
+    if dislocation >= Decimal("0.03"):
+        return Decimal("0.0030")
+    return base
 
 def main():
     if len(sys.argv) < 6:
@@ -95,6 +153,7 @@ def main():
     ref_anchor = get_reference_anchor(asset)
     live_price, source = get_live_price(asset)
     price = live_price if live_price is not None else ref_anchor
+    step = dynamic_step(price, ref_anchor)
 
     print(c("1;36", "UVDM Wingman TM 2025"))
     print(c("37", "LEWIS RS 15081968001"))
@@ -112,20 +171,23 @@ def main():
     put("Live", c("32", f"${price:.8f}"))
     put("Anchor", f"${ref_anchor:.8f}")
     put("Delta", c("32" if delta >= 0 else "31", f"{delta:+.2f}%"))
+    put("Step", c("35", f"{(step * 100):.2f}%"))
     put("State", c("1;31" if live else "1;33", "LIVE" if live else "DRY RUN"))
-    if source: put("Source", c("36", source.replace("https://", "")))
+    if source:
+        put("Source", c("36", source.replace("https://", "")))
     print("")
 
     cname = f"E-{asset}-USDT"
 
     if strategy == "single":
-        pb = Decimal("0.0025")
-        limit_price = (price * (Decimal("1") - pb)).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
-        qty = (usdt / limit_price).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
+        pb = step
+        limit_price = q8(price * (Decimal("1") - pb))
+        qty = q8(usdt / limit_price)
         result = place_order(cname, "BUY", qty, limit_price, lev, live=live)
 
         print(c("1;35", "ENTRY BAND"))
         put("Qty", c("1;37", f"{qty} {asset}"))
+        put("USDT", c("33", f"${usdt:.2f}"))
         put("Limit", c("32", f"${limit_price}"))
         put("Dip", c("31", f"{(pb * 100):.2f}%"))
         put("Order", json.dumps(result, separators=(",", ":")))
@@ -133,30 +195,29 @@ def main():
         print("Single shot complete.")
     else:
         weights = [Decimal("0.50"), Decimal("0.30"), Decimal("0.20")]
-        pullbacks = [Decimal("0.0025"), Decimal("0.0050"), Decimal("0.0075")]
-        ladder_colors = ["35", "34", "36"]
+        roles = ["top", "mid", "val"]
         total_qty = Decimal("0")
 
-        for i, (w, pb, col) in enumerate(zip(weights, pullbacks, ladder_colors), 1):
+        print(c("1;33", "LIMIT LADDER"))
+        print(c("36", "────────────────────────────────────────"))
+        print(c("37", "#  Limit     XLM         USDT   Role"))
+
+        for i, (w, role) in enumerate(zip(weights, roles), 1):
+            pb = step * Decimal(i)
             budget = (usdt * w).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
-            limit_price = (price * (Decimal("1") - pb)).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
-            qty = (budget / limit_price).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
+            limit_price = q8(price * (Decimal("1") - pb))
+            qty = q8(budget / limit_price)
             total_qty += qty
             result = place_order(cname, "BUY", qty, limit_price, lev, live=live)
 
-            print(c(f"1;{col}", f"LADDER {i}"))
-            put("Budget", c("33", f"${budget:.2f} USDT"))
-            put("Qty", c("1;37", f"{qty} {asset}"))
-            put("Limit", c("32", f"${limit_price}"))
-            put("Dip", c("31", f"{(pb * 100):.2f}%"))
+            print(c("32", f"{i:<2} {limit_price:<10} {qty:<11} {budget:<6} {role}"))
             put("Order", json.dumps(result, separators=(",", ":")))
-            print("")
 
-        print(c("36", "TOTAL"))
-        put("Budget", c("33", f"${usdt:.2f} USDT"))
-        put("Qty", c("1;37", f"{total_qty} {asset}"))
+        print(c("36", "────────────────────────────────────────"))
+        put("Total", c("1;37", f"{total_qty} {asset} / ${usdt:.2f}"))
         print("")
         print("Ladder complete.")
 
 if __name__ == "__main__":
     main()
+EOF
