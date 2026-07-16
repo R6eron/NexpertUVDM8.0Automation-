@@ -122,7 +122,7 @@ def place_order(cname, side, qty, price, leverage, live=False):
         headers = sign_headers("POST", "/fapi/v2/order", body)
         req = urllib.request.Request(
             "https://fapi.bitrue.com/fapi/v2/order",
-            data=body_str.encode(),
+            data=json.dumps(body).encode(),
             headers=headers,
             method="POST",
         )
