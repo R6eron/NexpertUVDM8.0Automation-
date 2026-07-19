@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+[ -f "$HOME/.config/uvdm/uvdm-shell.sh.good_20260703-085736" ] && . "$HOME/.config/uvdm/uvdm-shell.sh.good_20260703-085736"
+[ -f "$HOME/.config/uvdm/bootstrap.sh" ] && . "$HOME/.config/uvdm/bootstrap.sh"
+
+type bitrue_live_position >/dev/null 2>&1 && export -f bitrue_live_position
+
+if ! command -v bitrue_live_position >/dev/null 2>&1; then
+  echo "Logger error: bitrue_live_position not available"
+  exit 1
+fi
+
+pos="$(bitrue_live_position E-XLM-USDT)"
+
+python3 - "$pos" <<'PY'
+import csv, json, sys
+from datetime import datetime
+from pathlib import Path
+
+raw = sys.argv[1].strip()
+if not raw:
+    raise SystemExit("Logger error: empty position payload")
+
+j = json.loads(raw)
+
+log_dir = Path.home() / "NexpertUVDM-Automation" / "logs"
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / "xlm_intelligence.csv"
+
+row = {
+    "timestamp": datetime.now().isoformat(),
+    "mark_price": j.get("indexPrice", ""),
+    "avg_entry": j.get("avgPrice", ""),
+    "size": j.get("volume", ""),
+    "margin_usdt": j.get("positionBalance", ""),
+    "pnl_usdt": j.get("unRealizedAmount", ""),
+    "roe_pct": j.get("returnRateROE", ""),
+    "liq_price": j.get("liquidatePrice", ""),
+    "leverage": j.get("leverageLevel", "")
+}
+
+with open(log_file, "a", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=row.keys())
+    if f.tell() == 0:
+        writer.writeheader()
+    writer.writerow(row)
+
+print("Live XLM state logged.")
+PY

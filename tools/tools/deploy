@@ -1,0 +1,63 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+ROOT="/data/data/com.termux/files/home/NexpertUVDM-Automation"
+
+if [ $# -lt 5 ]; then
+  echo "[!] Usage: deploy <USDT> <ASSET> <spot|futures|f> <LEVx> <live> [PRICE]"
+  echo "Example: deploy 10 xlm spot 1x live"
+  echo "Example: deploy 10 xlm futures 3x live"
+  exit 1
+fi
+
+USDT_AMOUNT="$1"
+ASSET="$(printf '%s' "$2" | tr '[:lower:]' '[:upper:]')"
+MODE="$(printf '%s' "$3" | tr '[:upper:]' '[:lower:]')"
+LEV="$(printf '%s' "$4" | tr '[:upper:]' '[:lower:]')"
+ENV_MODE="$(printf '%s' "$5" | tr '[:upper:]' '[:lower:]')"
+PRICE="${6:-}"
+
+if [ "$MODE" = "f" ]; then
+  MODE="futures"
+fi
+
+SUGGESTED_ROUTE="2"
+SUGGEST_REASON="constructive structure, controlled volatility, ladder favored"
+
+if [ "$MODE" = "spot" ] && [ "$LEV" = "1x" ]; then
+  SUGGESTED_ROUTE="2"
+  SUGGEST_REASON="spot accumulation setup, ladder favored"
+fi
+
+echo "deploy_ready: Set single shot or adaptive ladder for ${USDT_AMOUNT} USDT ${ASSET} ${MODE} ${LEV}"
+echo "Suggested Route : ${SUGGESTED_ROUTE}"
+echo "Reason          : ${SUGGEST_REASON}"
+echo "Voice           : Ron, ${ASSET} ${MODE} is active. Option ${SUGGESTED_ROUTE} is favored, but manual confirmation is required."
+echo "1. Single shot"
+echo "2. Adaptive ladder"
+printf "Choose option (1/2, Enter=%s, auto=%ss): " "$SUGGESTED_ROUTE" "4" > /dev/tty
+
+OPT=""
+if read -r -t 4 OPT < /dev/tty; then
+  OPT="$(printf '%s' "$OPT" | tr -d '[:space:]')"
+else
+  OPT="$SUGGESTED_ROUTE"
+fi
+
+if [ -z "$OPT" ]; then
+  OPT="$SUGGESTED_ROUTE"
+fi
+
+case "$OPT" in
+  1|2) ;;
+  *)
+    echo "[!] Invalid option. Use 1 or 2."
+    exit 1
+    ;;
+esac
+
+if [ -n "$PRICE" ]; then
+  exec python3 "$ROOT/uvdm_live.py" "$USDT_AMOUNT" "$ASSET" "$MODE" "$LEV" "$ENV_MODE" "$PRICE" "$OPT"
+else
+  exec python3 "$ROOT/uvdm_live.py" "$USDT_AMOUNT" "$ASSET" "$MODE" "$LEV" "$ENV_MODE" "$OPT"
+fi

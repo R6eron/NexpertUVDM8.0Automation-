@@ -1,0 +1,50 @@
+{
+  "SC": {
+    "phase": "A",
+    "event_name": "Selling Climax",
+    "action_tag": "SC_OBSERVE_ONLY",
+    "allowed_actions": ["map_range_low", "observe_only", "micro_probe_optional"],
+    "risk_posture": "defensive",
+    "notes": "Stopping action; wait for AR and ST."
+  },
+  "AR": {
+    "phase": "A",
+    "event_name": "Automatic Rally",
+    "action_tag": "AR_RANGE_MARKER",
+    "allowed_actions": ["mark_range_high", "define_resistance", "wait_for_structure"],
+    "risk_posture": "defensive",
+    "notes": "Defines upper trading-range boundary."
+  },
+  "ST": {
+    "phase": "A_B",
+    "event_name": "Secondary Test",
+    "action_tag": "ST_OBSERVE_OR_MICRO",
+    "allowed_actions": ["confirm_range", "micro_entry_if_supply_dries"],
+    "risk_posture": "cautious",
+    "notes": "Prefer narrower spread and lower volume than SC."
+  },
+  "SOS": {
+    "phase": "D_E",
+    "event_name": "Sign of Strength",
+    "action_tag": "SOS_CONFIRM",
+    "allowed_actions": ["confirm_breakout", "wait_for_buec", "avoid_chasing"],
+    "risk_posture": "constructive",
+    "notes": "Wide spread and strong volume show demand dominance."
+  },
+  "BUEC": {
+    "phase": "D",
+    "event_name": "Back-Up to Edge of Creek",
+    "action_tag": "BUEC_TEST_ZONE",
+    "allowed_actions": ["watch_back_up_zone", "plan_entries_in_zone", "stop_below_creek"],
+    "risk_posture": "constructive",
+    "notes": "Classic retest after SOS / Jump Across the Creek."
+  },
+  "LPS": {
+    "phase": "D_E",
+    "event_name": "Last Point of Support",
+    "action_tag": "LPS_DEPLOY_ZONE",
+    "allowed_actions": ["ladder_spot_longs", "momentum_overlay_only", "stop_below_lps"],
+    "risk_posture": "offensive",
+    "notes": "Primary long deployment area after confirmation."
+  }
+}

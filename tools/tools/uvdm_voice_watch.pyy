@@ -1,0 +1,457 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from shutil import which
+from typing import Any, Dict, Optional, Tuple
+
+BASE = Path.home() / "NexpertUVDM-Automation"
+RUNTIME = BASE / "runtime"
+STATE_FILE = RUNTIME / "voice_watch_state.json"
+WATCH_FILE = RUNTIME / "alerts.json"
+LOG_FILE = RUNTIME / "voice_watch.log"
+OUT_FILE = RUNTIME / "voice_watch.out"
+LAST_SPOKEN_FILE = RUNTIME / "voice_watch_last_spoken.txt"
+EXEC_LOG_FILE = BASE / "execution_log.jsonl"
+ONBOARD_TARGET = BASE / "NexpertUVDM-Automation.good-2026-06-07" / "uvdm_live_onboard.py"
+VOICE_PROFILE_FILE = BASE / "config" / "voice.json"
+WINGMAN_PROFILE_FILE = BASE / "wingman_profile_cleaned.json"
+IDENTITY_FILE = BASE / "uvdm_identity.json"
+PROMOTION_POLICY_FILE = BASE / "promotion_policy.json"
+
+DEFAULT_POLL_SECONDS = int(os.getenv("UVDM_WATCH_POLL", "15"))
+DEFAULT_TRIGGER_ON_START = os.getenv("UVDM_WATCH_TRIGGER_ON_START", "0") == "1"
+DEFAULT_AUTO_ON_EXECUTE_READY = os.getenv("UVDM_WATCH_AUTO_ON_EXECUTE_READY", "0") == "1"
+DEFAULT_ONESHOT = os.getenv("UVDM_WATCH_ONESHOT", "0") == "1"
+DEFAULT_DEBUG = os.getenv("UVDM_WATCH_DEBUG", "0") == "1"
+DEFAULT_DRY_RUN = os.getenv("UVDM_WATCH_DRY_RUN", "0") == "1"
+DEFAULT_SPEAK_OFF = os.getenv("UVDM_WATCH_SPEAK_OFF", "0") == "1"
+DEFAULT_DEBOUNCE_SECONDS = int(os.getenv("UVDM_WATCH_DEBOUNCE", "45"))
+DEFAULT_REPEAT_EXECUTE_SECONDS = int(os.getenv("UVDM_WATCH_EXECUTE_DEBOUNCE", "180"))
+DEFAULT_NOTIFY = os.getenv("UVDM_WATCH_NOTIFY", "1") == "1"
+
+ALLOWED_LEVERAGES = {"1x", "5x", "7x", "10x"}
+LOWER_KEYS = {"regime", "setup", "status", "state", "mode", "venue", "action", "operator_action"}
+UPPER_KEYS = {"asset", "symbol", "ticker", "tag"}
+MESSAGE_KEYS = [
+    ("asset", None),
+    ("regime", "regime"),
+    ("setup", "setup"),
+    ("level", "level"),
+    ("state", "state"),
+    ("status", "status"),
+    ("action", "action"),
+]
+CANON_ACTIONS = {
+    "NO_TRADE_WAIT",
+    "SCALE_IN_SMALL",
+    "TRIM_RISK",
+    "HARD_EXIT",
+    "REDUCE_SIZE_NEXT",
+    "REVIEW_ONLY",
+}
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def ensure_runtime() -> None:
+    RUNTIME.mkdir(parents=True, exist_ok=True)
+
+
+def append_text(path: Path, line: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(line)
+
+
+class WatchRuntime:
+    def __init__(self, args: argparse.Namespace, prefs: Dict[str, Any]):
+        self.args = args
+        self.prefs = prefs
+        self.debug_enabled = bool(args.debug)
+        self.speak_enabled = not bool(args.speak_off)
+        self.notify_enabled = bool(args.notify)
+        self.voice_name = detect_voice_name(prefs)
+        self.voice_rate = detect_voice_rate(prefs)
+        self.voice_pitch = detect_voice_pitch(prefs)
+
+    def log(self, msg: str, level: str = "INFO") -> None:
+        line = f"[{utc_now()}] [{level}] {msg}\
+"
+        append_text(self.args.log_file, line)
+        if self.debug_enabled or level in {"ERROR", "WARN"}:
+            print(line, end="")
+
+    def debug(self, msg: str) -> None:
+        if self.debug_enabled:
+            self.log(msg, level="DEBUG")
+
+    def speak(self, msg: str) -> None:
+        msg = compact_message(msg)
+        if not msg:
+            return
+        append_text(self.args.last_spoken_file, msg + "\
+")
+        if not self.speak_enabled:
+            self.debug(f"speak_off: {msg}")
+            return
+        try:
+            if which("termux-tts-speak"):
+                subprocess.run(["termux-tts-speak", msg], check=False)
+            if self.notify_enabled and which("termux-notification"):
+                subprocess.run([
+                    "termux-notification",
+                    "--title", "UVDM Wingman",
+                    "--content", msg,
+                ], check=False)
+        except Exception as exc:
+            self.log(f"speak failed: {type(exc).__name__}: {exc}", level="WARN")
+
+
+def detect_voice_name(prefs: Dict[str, Any]) -> str:
+    voice = prefs.get("voice") or {}
+    return str(voice.get("name") or voice.get("voice_name") or "TermuxVoice").strip() or "TermuxVoice"
+
+
+def detect_voice_rate(prefs: Dict[str, Any]) -> float:
+    voice = prefs.get("voice") or {}
+    for key in ("rate", "speech_rate"):
+        val = voice.get(key)
+        if isinstance(val, (int, float)):
+            return float(val)
+    return 0.9
+
+
+def detect_voice_pitch(prefs: Dict[str, Any]) -> float:
+    voice = prefs.get("voice") or {}
+    val = voice.get("pitch")
+    if isinstance(val, (int, float)):
+        return float(val)
+    return 0.85
+
+
+def load_json(path: Path, default: Any, rt: Optional[WatchRuntime] = None) -> Any:
+    try:
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as exc:
+        if rt:
+            rt.log(f"json load failed for {path}: {type(exc).__name__}: {exc}", level="WARN")
+    return default
+
+
+def save_json(path: Path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, sort_keys=True, ensure_ascii=False)
+    os.replace(tmp, path)
+
+
+def file_hash(path: Path) -> Optional[str]:
+    if not path.exists():
+        return None
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            b = f.read(65536)
+            if not b:
+                break
+            h.update(b)
+    return h.hexdigest()
+
+
+def compact_message(msg: str) -> str:
+    return " ".join(str(msg or "").split()).strip()
+
+
+def normalize_value(key: str, value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, list):
+        return [normalize_value(key, x) for x in value]
+    if isinstance(value, dict):
+        return normalize_alerts(value)
+    text = compact_message(str(value))
+    if key in UPPER_KEYS:
+        return text.upper()
+    if key in LOWER_KEYS:
+        return text.lower()
+    return text
+
+
+def normalize_alerts(data: Any) -> Dict[str, Any]:
+    if isinstance(data, dict):
+        out: Dict[str, Any] = {}
+        for key in sorted(data.keys()):
+            out[str(key)] = normalize_value(str(key), data[key])
+        return out
+    if isinstance(data, list):
+        return {"items": [normalize_value("items", x) for x in data]}
+    if data is None:
+        return {}
+    return {"message": compact_message(str(data))}
+
+
+def semantic_fingerprint(data: Dict[str, Any]) -> str:
+    payload = json.dumps(data, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def parse_leverage_token(voice_cmd: str) -> str:
+    m = re.search(r"\\b([0-9]+(?:\\.[0-9]+)?)x\\b", str(voice_cmd or "").lower())
+    return f"{m.group(1)}x" if m else ""
+
+
+def build_message(cur: Dict[str, Any], prev: Optional[Dict[str, Any]]) -> str:
+    explicit = compact_message(cur.get("message", ""))
+    if explicit:
+        return explicit
+    bits = []
+    for key, label in MESSAGE_KEYS:
+        val = str(cur.get(key, "")).strip()
+        if not val:
+            continue
+        bits.append(val if label is None else f"{label} {val}")
+    operator_action = str(cur.get("operator_action", "")).strip()
+    if operator_action:
+        action = operator_action.upper().replace(" ", "_")
+        if action in CANON_ACTIONS:
+            bits.append(f"ACTION {action}")
+    if not bits and prev != cur:
+        return "RISK: UVDM state changed. ACTION: Review only."
+    if not bits:
+        return ""
+    return " | ".join(bits)
+
+
+def whisper_wrap(message: str, cur: Dict[str, Any], prefs: Dict[str, Any]) -> str:
+    msg = compact_message(message)
+    if not msg:
+        return ""
+    tags = []
+    status = str(cur.get("status", "")).strip().lower()
+    regime = str(cur.get("regime", "")).strip().lower()
+    action = str(cur.get("operator_action", cur.get("action", ""))).strip().upper().replace(" ", "_")
+    if status:
+        tags.append(f"RISK: {status}")
+    if regime:
+        tags.append(f"PROCESS: regime {regime}")
+    if action in CANON_ACTIONS:
+        tags.append(f"ACTION: {action}")
+    if not tags:
+        tags.append("PROCESS: wait for proof")
+    emotion = str((prefs.get("doctrine") or {}).get("emotion", "Passion without attachment.")).strip()
+    if emotion:
+        tags.append(f"EMOTION: {emotion}")
+    return compact_message(" | ".join(tags + [msg]))
+
+
+def now_epoch() -> float:
+    return time.time()
+
+
+def should_debounce(msg_fp: str, prev_state: Dict[str, Any], debounce_seconds: int) -> bool:
+    last_fp = prev_state.get("last_message_fp")
+    last_ts = float(prev_state.get("last_message_ts") or 0.0)
+    return bool(last_fp and last_fp == msg_fp and (now_epoch() - last_ts) < debounce_seconds)
+
+
+def should_block_execute(exec_fp: str, prev_state: Dict[str, Any], debounce_seconds: int) -> bool:
+    last_fp = prev_state.get("last_execute_fp")
+    last_ts = float(prev_state.get("last_execute_ts") or 0.0)
+    return bool(last_fp and last_fp == exec_fp and (now_epoch() - last_ts) < debounce_seconds)
+
+
+def append_jsonl(path: Path, payload: Dict[str, Any]) -> None:
+    append_text(path, json.dumps(payload,    append_text(path, json.dumps(payload, ensure_ascii=False, sort_keys=True) + "
+")    append_text(path, json.dumps(payload, ensure_ascii=False, sort_keys=True) + "
+")
+
+
+def maybe_auto_execute(cur: Dict[str, Any], prev_state: Dict[str, Any], rt: WatchRuntime) -> Tuple[bool, Optional[str]]:
+    if not rt.args.auto_on_execute_ready:
+        return False, None
+    status = str(cur.get("status", "")).strip().lower()
+    voice_cmd = compact_message(cur.get("voice_cmd", ""))
+    if status != "execute_ready" or not voice_cmd:
+        rt.debug("auto_execute skipped: status/voice_cmd not ready")
+        return False, None
+    lev = parse_leverage_token(voice_cmd)
+    if lev and lev not in ALLOWED_LEVERAGES:
+        msg = f"RISK: blocked leverage {lev}. ACTION: review only. Allowed 1x 5x 7x 10x only."
+        rt.log(msg, level="WARN")
+        rt.speak(msg)
+        return False, None
+    exec_fp = semantic_fingerprint({"status": status, "voice_cmd": voice_cmd, "lev": lev})
+    if should_block_execute(exec_fp, prev_state, rt.args.execute_debounce_seconds):
+        rt.debug(f"auto_execute debounced: {exec_fp}")
+        return False, exec_fp
+    env = os.environ.copy()
+    env["UVDM_VOICE_CMD"] = voice_cmd
+    env["UVDM_WINGMAN_MODE"] = "production" if not rt.args.dry_run else "dry_run"
+    payload = {
+        "ts": utc_now(),
+        "kind": "execute_attempt",
+        "voice_cmd": voice_cmd,
+        "lev": lev,
+        "dry_run": rt.args.dry_run,
+        "target": str(rt.args.onboard_target),
+    }
+    append_jsonl(rt.args.exec_log_file, payload)
+    if rt.args.dry_run:
+        rt.log(f"dry_run execute: {voice_cmd}")
+        rt.speak(f"ACTION: REVIEW ONLY. Dry run execute ready for {voice_cmd}")
+        return False, exec_fp
+    try:
+        cp = subprocess.run([sys.executable, str(rt.args.onboard_target)], env=env, check=False)
+        rt.log(f"execute_ready launched rc={cp.returncode} cmd={voice_cmd}")
+        return cp.returncode == 0, exec_fp
+    except Exception as exc:
+        rt.log(f"execute launch failed: {type(exc).__name__}: {exc}", level="ERROR")
+        rt.speak("RISK: execute launch failed. ACTION: review only.")
+        return False, exec_fp
+
+
+def load_prefs() -> Dict[str, Any]:
+    prefs: Dict[str, Any] = {
+        "voice": {"name": "TermuxVoice", "rate": 0.9, "pitch": 0.85},
+        "doctrine": {"emotion": "calm, detached, process over outcome"},
+        "operator": {"name": "Ron"},
+    }
+    for path in (VOICE_PROFILE_FILE, WINGMAN_PROFILE_FILE, IDENTITY_FILE, PROMOTION_POLICY_FILE):
+        data = load_json(path, None)
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if k not in prefs or not isinstance(prefs.get(k), dict) or not isinstance(v, dict):
+                    prefs[k] = v
+                else:
+                    merged = dict(prefs[k])
+                    merged.update(v)
+                    prefs[k] = merged
+    return prefs
+
+
+def preflight(rt: WatchRuntime) -> None:
+    ensure_runtime()
+    rt.log(f"boot watcher voice={rt.voice_name} rate={rt.voice_rate} pitch={rt.voice_pitch}")
+    rt.log(f"watch_file={rt.args.watch_file}")
+    rt.log(f"state_file={rt.args.state_file}")
+    rt.log(f"dry_run={rt.args.dry_run} debug={rt.args.debug} auto_execute={rt.args.auto_on_execute_ready}")
+    if not rt.args.onboard_target.exists():
+        rt.log(f"onboard target missing: {rt.args.onboard_target}", level="WARN")
+
+
+def step(prev_state: Dict[str, Any], start: bool, rt: WatchRuntime) -> Dict[str, Any]:
+    cur_hash = file_hash(rt.args.watch_file)
+    cur_alerts = normalize_alerts(load_json(rt.args.watch_file, {}, rt)) if rt.args.watch_file.exists() else {}
+    cur_fp = semantic_fingerprint(cur_alerts)
+    changed = (cur_hash != prev_state.get("watch_hash")) or (cur_fp != prev_state.get("alerts_fp"))
+    rt.debug(f"step changed={changed} start={start} hash={cur_hash} fp={cur_fp}")
+
+    new_state = dict(prev_state)
+    new_state.update({
+        "watch_hash": cur_hash,
+        "alerts": cur_alerts,
+        "alerts_fp": cur_fp,
+        "last_seen_ts": utc_now(),
+    })
+
+    if changed and (rt.args.trigger_on_start or rt.args.oneshot or not start):
+        msg = build_message(cur_alerts, prev_state.get("alerts"))
+        wrapped = whisper_wrap(msg, cur_alerts, rt.prefs)
+        msg_fp = semantic_fingerprint({"message": wrapped}) if wrapped else ""
+        if wrapped and not should_debounce(msg_fp, prev_state, rt.args.debounce_seconds):
+            rt.log(f"trigger: {wrapped}")
+            rt.speak(wrapped)
+            new_state["last_message"] = wrapped
+            new_state["last_message_fp"] = msg_fp
+            new_state["last_message_ts"] = now_epoch()
+        elif wrapped:
+            rt.debug(f"message debounced: {wrapped}")
+        executed, exec_fp = maybe_auto_execute(cur_alerts, prev_state, rt)
+        if exec_fp:
+            new_state["last_execute_fp"] = exec_fp
+            new_state["last_execute_ts"] = now_epoch()
+            new_state["last_execute_ok"] = bool(executed)
+    save_json(rt.args.state_file, new_state)
+    return new_state
+
+
+def loop(rt: WatchRuntime) -> None:
+    prev_state = load_json(rt.args.state_file, {
+        "watch_hash": None,
+        "alerts": None,
+        "alerts_fp": None,
+        "last_message": "",
+        "last_message_fp": None,
+        "last_message_ts": 0,
+        "last_execute_fp": None,
+        "last_execute_ts": 0,
+        "last_execute_ok": False,
+    }, rt)
+    start = True
+    if rt.args.oneshot:
+        step(prev_state, start, rt)
+        return
+    while True:
+        prev_state = step(prev_state, start, rt)
+        start = False
+        time.sleep(rt.args.poll_seconds)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description="UVDM interactive voice watcher")
+    p.add_argument("--watch-file", type=Path, default=WATCH_FILE)
+    p.add_argument("--state-file", type=Path, default=STATE_FILE)
+    p.add_argument("--log-file", type=Path, default=LOG_FILE)
+    p.add_argument("--out-file", type=Path, default=OUT_FILE)
+    p.add_argument("--last-spoken-file", type=Path, default=LAST_SPOKEN_FILE)
+    p.add_argument("--exec-log-file", type=Path, default=EXEC_LOG_FILE)
+    p.add_argument("--onboard-target", type=Path, default=ONBOARD_TARGET)
+    p.add_argument("--poll-seconds", type=int, default=DEFAULT_POLL_SECONDS)
+    p.add_argument("--debounce-seconds", type=int, default=DEFAULT_DEBOUNCE_SECONDS)
+    p.add_argument("--execute-debounce-seconds", type=int, default=DEFAULT_REPEAT_EXECUTE_SECONDS)
+    p.add_argument("--trigger-on-start", action="store_true", default=DEFAULT_TRIGGER_ON_START)
+    p.add_argument("--auto-on-execute-ready", action="store_true", default=DEFAULT_AUTO_ON_EXECUTE_READY)
+    p.add_argument("--oneshot", action="store_true", default=DEFAULT_ONESHOT)
+    p.add_argument("--debug", action="store_true", default=DEFAULT_DEBUG)
+    p.add_argument("--dry-run", action="store_true", default=DEFAULT_DRY_RUN)
+    p.add_argument("--speak-off", action="store_true", default=DEFAULT_SPEAK_OFF)
+    p.add_argument("--notify", action="store_true", default=DEFAULT_NOTIFY)
+    return p
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    prefs = load_prefs()
+    rt = WatchRuntime(args, prefs)
+    preflight(rt)
+    loop(rt)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        ensure_runtime()
+        append_text(OUT_FILE, f"[{utc_now()}] FATAL: {type(exc).__name__}: {exc}\
+")
+        raise
