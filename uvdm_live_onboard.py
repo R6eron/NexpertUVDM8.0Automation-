@@ -92,6 +92,15 @@ def normalize_asset(raw):
     return None
 
 
+def normalize_asset_choice(raw):
+    s = str(raw).strip().upper()
+    if s.isdigit():
+        idx = int(s) - 1
+        if 0 <= idx < len(ASSETS):
+            return ASSETS[idx]
+    return normalize_asset(s)
+
+
 def symbol_to_feed(asset_name):
     mapping = {
         "BTC": "BTC/USD",
@@ -214,30 +223,12 @@ def ask_choice_asset():
     while True:
         print()
         print(c("Choose asset or insert your own:", CYAN, True))
-        print(c("1. FLR", WHITE, True))
-        print(c("2. SGB", WHITE, True))
-        print(c("3. XRP", WHITE, True))
-        print(c("4. XLM", WHITE, True))
-        print(c("5. ETH", WHITE, True))
-        print(c("6. BTC", WHITE, True))
-        raw = input(c("Select [1-6] or type ticker: ", WHITE)).strip().upper()
+        for i, asset in enumerate(ASSETS, 1):
+            print(c(f"{i}. {asset}", WHITE, True))
 
-        if raw.endswith("X") and raw[:-1] in ("1", "2", "3", "4", "5", "6"):
-            raw = raw[:-1]
+        raw = input(c("Select [1-6] or type ticker: ", YELLOW)).strip()
+        asset = normalize_asset_choice(raw)
 
-        mapping = {
-            "1": "FLR",
-            "2": "SGB",
-            "3": "XRP",
-            "4": "XLM",
-            "5": "ETH",
-            "6": "BTC",
-        }
-
-        if raw in mapping:
-            return mapping[raw]
-
-        asset = normalize_asset(raw)
         if asset:
             return asset
 
@@ -250,9 +241,9 @@ def ask_choice_venue():
         print(c("Choose venue:", CYAN, True))
         print(c("1. Futures", WHITE, True))
         print(c("2. Spot", WHITE, True))
-        raw = input(c("Select [1-2] or type futures/spot: ", WHITE)).strip().lower()
+        raw = input(c("Select [1-2] or type futures/spot: ", YELLOW)).strip().lower()
 
-        if raw in ("1", "f", "future", "futures"):
+        if raw in ("1", "f", "future", "futures", "long"):
             return "futures"
         if raw in ("2", "s", "spot"):
             return "spot"
@@ -294,20 +285,20 @@ def print_ladder(rows, futures_mode):
     print()
     if term_width() < 72:
         if futures_mode:
-            print("TAG      PRICE        MARGIN      UNITS")
+            print(c("TAG      PRICE        MARGIN      UNITS", CYAN, True))
             for tag, rung_px, margin, rung_notional, rung_units in rows:
                 print(f"{tag:<8} {rung_px:>10.6f} {margin:>11.2f} {rung_units:>10.0f}")
         else:
-            print("TAG      PRICE        DEPLOY      UNITS")
+            print(c("TAG      PRICE        DEPLOY      UNITS", CYAN, True))
             for tag, rung_px, margin, rung_notional, rung_units in rows:
                 print(f"{tag:<8} {rung_px:>10.6f} {margin:>11.2f} {rung_units:>10.2f}")
     else:
         if futures_mode:
-            print("TAG      PRICE        MARGIN     NOTIONAL        UNITS")
+            print(c("TAG      PRICE        MARGIN     NOTIONAL        UNITS", CYAN, True))
             for tag, rung_px, margin, rung_notional, rung_units in rows:
                 print(f"{tag:<8} {rung_px:>10.6f} {margin:>11.2f} {rung_notional:>12.2f} {rung_units:>12.2f}")
         else:
-            print("TAG      PRICE        DEPLOY          UNITS")
+            print(c("TAG      PRICE        DEPLOY          UNITS", CYAN, True))
             for tag, rung_px, margin, rung_notional, rung_units in rows:
                 print(f"{tag:<8} {rung_px:>10.6f} {margin:>11.2f} {rung_units:>14.2f}")
 
@@ -315,15 +306,15 @@ def print_ladder(rows, futures_mode):
 def main():
     print()
     print(center("Wingman TM 2025", CYAN, True))
-    print(center("Digital Immortal live onboarding", BLUE, False))
+    print(center("Digital Immortal live onboarding", WHITE, False))
     print()
 
     asset = ask_choice_asset()
     venue = ask_choice_venue()
-    deploy_amt = ask_float(c("Deploy amount? ", WHITE), "0", 0)
-    portfolio_amt = ask_float(c("Portfolio size? [30000] ", WHITE), "30000", 0)
+    deploy_amt = ask_float(c("Deploy amount? ", YELLOW), "0", 0)
+    portfolio_amt = ask_float(c("Portfolio size? [30000] ", YELLOW), "30000", 0)
 
-    use_live = ask(c("Use live FTSO/offchain price first? (y/n) [y] ", WHITE), "y").lower()
+    use_live = ask(c("Use live FTSO/offchain price first? (y/n) [y] ", YELLOW), "y").lower()
 
     px = None
     source = "MANUAL"
@@ -334,16 +325,16 @@ def main():
             px, source = get_live_offchain_px(asset)
 
     if px is None:
-        px = ask_float(c("Current price? ", WHITE), "0", 0)
+        px = ask_float(c("Current price? ", YELLOW), "0", 0)
         source = "MANUAL"
 
-    risk_pct = ask_float(c("Stop Loss (SL) % below entry? [5] ", WHITE), "5", 0) / 100.0
-    target_pct = ask_float(c("Target % above entry? [8] ", WHITE), "8", 0) / 100.0
-    sharpe = ask_float(c("Sharpe ratio? [3.1] ", WHITE), "3.1")
+    risk_pct = ask_float(c("Stop Loss (SL) % below entry? [5] ", YELLOW), "5", 0) / 100.0
+    target_pct = ask_float(c("Target % above entry? [8] ", YELLOW), "8", 0) / 100.0
+    sharpe = ask_float(c("Sharpe ratio? [3.1] ", YELLOW), "3.1")
 
     leverage = 1.0
     if venue == "futures":
-        leverage = ask_float(c("Leverage? max 10x, recommended 7x & under [5] ", WHITE), "5", 0)
+        leverage = ask_float(c("Leverage? max 10x, recommended 7x & under [5] ", YELLOW), "5", 0)
         leverage = max(1.0, min(leverage, 10.0))
 
     entry_ref = float(px)
@@ -409,11 +400,11 @@ def main():
 
     if venue == "futures":
         print()
-        print("TP doctrine:")
-        print("Move all stops to zero @ +8%")
-        print("TP1 -> reduce leverage one step")
-        print("TP2 -> reduce leverage again")
-        print("TP3 -> move toward 3x or 1x")
+        print(c("TP doctrine:", CYAN, True))
+        print(c("Move all stops to zero @ +8%", WHITE))
+        print(c("TP1 -> reduce leverage one step", WHITE))
+        print(c("TP2 -> reduce leverage again", WHITE))
+        print(c("TP3 -> move toward 3x or 1x", WHITE))
 
     print(hr())
     print()
