@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import argparse
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
@@ -105,21 +107,13 @@ def detect_divergences(df: pd.DataFrame) -> pd.DataFrame:
     for i in range(1, len(high_idx)):
         prev_idx = high_idx[i - 1]
         curr_idx = high_idx[i]
-        prev_price = out.loc[prev_idx, "close"]
-        curr_price = out.loc[curr_idx, "close"]
-        prev_macd = out.loc[prev_idx, "macd"]
-        curr_macd = out.loc[curr_idx, "macd"]
-        if curr_price > prev_price and curr_macd < prev_macd:
+        if out.loc[curr_idx, "close"] > out.loc[prev_idx, "close"] and out.loc[curr_idx, "macd"] < out.loc[prev_idx, "macd"]:
             out.loc[curr_idx, "bearish_divergence"] = True
 
     for i in range(1, len(low_idx)):
         prev_idx = low_idx[i - 1]
         curr_idx = low_idx[i]
-        prev_price = out.loc[prev_idx, "close"]
-        curr_price = out.loc[curr_idx, "close"]
-        prev_macd = out.loc[prev_idx, "macd"]
-        curr_macd = out.loc[curr_idx, "macd"]
-        if curr_price < prev_price and curr_macd > prev_macd:
+        if out.loc[curr_idx, "close"] < out.loc[prev_idx, "close"] and out.loc[curr_idx, "macd"] > out.loc[prev_idx, "macd"]:
             out.loc[curr_idx, "bullish_divergence"] = True
 
     return out
@@ -133,6 +127,12 @@ def position_mark_to_market(side, units, avg_entry, close_price):
     return units * (avg_entry - close_price)
 
 
+def trading_cost(notional: float, cfg: Config) -> float:
+    fee_rate = cfg.fee_bps / 10000.0
+    slip_rate = cfg.slippage_bps / 10000.0
+    return notional * (fee_rate + slip_rate)
+
+
 def run_backtest(df: pd.DataFrame, cfg: Config, exit_mode: str = "divergence"):
     cash = cfg.initial_capital
     equity_curve = []
@@ -142,23 +142,16 @@ def run_backtest(df: pd.DataFrame, cfg: Config, exit_mode: str = "divergence"):
     last_price_pivot_high = np.nan
     pending_bearish_div = False
     pending_bullish_div = False
-    trailing_anchor = None
 
-    fee_rate = cfg.fee_bps / 10000.0
-    slip_rate = cfg.slippage_bps / 10000.0
-    mult = cfg.leverage if cfg.futures_mode else 1.0
-
-    start_bar = max(
-        cfg.consolidation_bars + 5,
-        cfg.atr_period + 5,
-        cfg.macd_slow + cfg.macd_signal
-    )
+    start_bar = max(cfg.consolidation_bars + 5, cfg.atr_period + 5, cfg.macd_slow + cfg.macd_signal)
 
     for i in range(start_bar, len(df)):
         row = df.iloc[i]
         ts = row["timestamp"]
-        close = row["close"]
-        atr = row["atr"]
+        close = float(row["close"])
+        atr = float(row["atr"]) if pd.notna(row["atr"]) else np.nan
+        rolling_high = float(row["rolling_high"]) if pd.notna(row["rolling_high"]) else np.nan
+        rolling_low = float(row["rolling_low"]) if pd.notna(row["rolling_low"]) else np.nan
 
         if row["price_pivot_low"]:
             last_price_pivot_low = close
@@ -170,13 +163,199 @@ def run_backtest(df: pd.DataFrame, cfg: Config, exit_mode: str = "divergence"):
             pending_bullish_div = True
 
         if position is not None:
-            if position["side"] == "long":
-                mark = cash + position_mark_to_market("long", position["units"] * mult, position["avg_entry"], close)
-            else:
-                mark = cash + position_mark_to_market("short", position["units"] * mult, position["avg_entry"], close)
+            mtm = position_mark_to_market(position["side"], position["units"] * (cfg.leverage if cfg.futures_mode else 1.0), position["avg_entry"], close)
+            mark = cash + mtm
         else:
             mark = cash
         equity_curve.append({"timestamp": ts, "equity": mark})
 
+        if np.isnan(atr) or np.isnan(rolling_high) or np.isnan(rolling_low):
+            continue
 
-        if position is
+        if position is None:
+            long_trigger = close > rolling_high + cfg.breakout_buffer_atr * atr and row["macd_hist"] > 0
+            short_trigger = close < rolling_low - cfg.breakout_buffer_atr * atr and row["macd_hist"] < 0
+
+            if long_trigger:
+                alloc = cfg.add_sizes[0]
+                notional = cash * alloc
+                units = notional / close if close > 0 else 0
+                cost = trading_cost(notional, cfg)
+                cash -= cost
+                position = {
+                    "side": "long",
+                    "units": units,
+                    "avg_entry": close,
+                    "entries": [{"ts": ts, "price": close, "units": units}],
+                    "adds": 0,
+                    "highest_close": close,
+                    "lowest_close": close,
+                    "last_add_price": close,
+                    "entry_ts": ts,
+                }
+                pending_bearish_div = False
+                pending_bullish_div = False
+                continue
+
+            if short_trigger:
+                alloc = cfg.add_sizes[0]
+                notional = cash * alloc
+                units = notional / close if close > 0 else 0
+                cost = trading_cost(notional, cfg)
+                cash -= cost
+                position = {
+                    "side": "short",
+                    "units": units,
+                    "avg_entry": close,
+                    "entries": [{"ts": ts, "price": close, "units": units}],
+                    "adds": 0,
+                    "highest_close": close,
+                    "lowest_close": close,
+                    "last_add_price": close,
+                    "entry_ts": ts,
+                }
+                pending_bearish_div = False
+                pending_bullish_div = False
+                continue
+
+        else:
+            position["highest_close"] = max(position["highest_close"], close)
+            position["lowest_close"] = min(position["lowest_close"], close)
+
+            if position["adds"] < cfg.max_adds - 1:
+                next_alloc = cfg.add_sizes[position["adds"] + 1]
+                if position["side"] == "long" and close >= position["last_add_price"] + cfg.min_add_atr_spacing * atr:
+                    notional = cash * next_alloc
+                    units = notional / close if close > 0 else 0
+                    cost = trading_cost(notional, cfg)
+                    new_total_units = position["units"] + units
+                    position["avg_entry"] = ((position["avg_entry"] * position["units"]) + (close * units)) / new_total_units
+                    position["units"] = new_total_units
+                    position["adds"] += 1
+                    position["last_add_price"] = close
+                    position["entries"].append({"ts": ts, "price": close, "units": units})
+                    cash -= cost
+                elif position["side"] == "short" and close <= position["last_add_price"] - cfg.min_add_atr_spacing * atr:
+                    notional = cash * next_alloc
+                    units = notional / close if close > 0 else 0
+                    cost = trading_cost(notional, cfg)
+                    new_total_units = position["units"] + units
+                    position["avg_entry"] = ((position["avg_entry"] * position["units"]) + (close * units)) / new_total_units
+                    position["units"] = new_total_units
+                    position["adds"] += 1
+                    position["last_add_price"] = close
+                    position["entries"].append({"ts": ts, "price": close, "units": units})
+                    cash -= cost
+
+            exit_reason = None
+            if position["side"] == "long":
+                structural_stop = close < last_price_pivot_low if pd.notna(last_price_pivot_low) else False
+                divergence_exit = pending_bearish_div and exit_mode == "divergence"
+                trailing_exit = cfg.compare_trailing_stop and close <= position["highest_close"] * (1 - cfg.trailing_stop_pct / 100.0)
+                if structural_stop:
+                    exit_reason = "pivot_break"
+                elif divergence_exit:
+                    exit_reason = "bearish_divergence"
+                elif trailing_exit:
+                    exit_reason = "trailing_stop"
+            else:
+                structural_stop = close > last_price_pivot_high if pd.notna(last_price_pivot_high) else False
+                divergence_exit = pending_bullish_div and exit_mode == "divergence"
+                trailing_exit = cfg.compare_trailing_stop and close >= position["lowest_close"] * (1 + cfg.trailing_stop_pct / 100.0)
+                if structural_stop:
+                    exit_reason = "pivot_break"
+                elif divergence_exit:
+                    exit_reason = "bullish_divergence"
+                elif trailing_exit:
+                    exit_reason = "trailing_stop"
+
+            if exit_reason is not None:
+                exit_notional = position["units"] * close
+                cost = trading_cost(exit_notional, cfg)
+                gross_pnl = position_mark_to_market(position["side"], position["units"] * (cfg.leverage if cfg.futures_mode else 1.0), position["avg_entry"], close)
+                net_pnl = gross_pnl - cost
+                cash += net_pnl
+                trades.append({
+                    "entry_ts": str(position["entry_ts"]),
+                    "exit_ts": str(ts),
+                    "side": position["side"],
+                    "units": round(position["units"], 8),
+                    "avg_entry": round(position["avg_entry"], 6),
+                    "exit_price": round(close, 6),
+                    "gross_pnl": round(gross_pnl, 2),
+                    "net_pnl": round(net_pnl, 2),
+                    "adds": position["adds"],
+                    "exit_reason": exit_reason,
+                })
+                position = None
+                pending_bearish_div = False
+                pending_bullish_div = False
+
+    if position is not None:
+        close = float(df.iloc[-1]["close"])
+        ts = df.iloc[-1]["timestamp"]
+        exit_notional = position["units"] * close
+        cost = trading_cost(exit_notional, cfg)
+        gross_pnl = position_mark_to_market(position["side"], position["units"] * (cfg.leverage if cfg.futures_mode else 1.0), position["avg_entry"], close)
+        net_pnl = gross_pnl - cost
+        cash += net_pnl
+        trades.append({
+            "entry_ts": str(position["entry_ts"]),
+            "exit_ts": str(ts),
+            "side": position["side"],
+            "units": round(position["units"], 8),
+            "avg_entry": round(position["avg_entry"], 6),
+            "exit_price": round(close, 6),
+            "gross_pnl": round(gross_pnl, 2),
+            "net_pnl": round(net_pnl, 2),
+            "adds": position["adds"],
+            "exit_reason": "end_of_data",
+        })
+
+    equity_df = pd.DataFrame(equity_curve)
+    trades_df = pd.DataFrame(trades)
+    total_return_pct = ((cash / cfg.initial_capital) - 1.0) * 100.0
+    summary = {
+        "initial_capital": cfg.initial_capital,
+        "final_equity": round(cash, 2),
+        "total_return_pct": round(total_return_pct, 2),
+        "trade_count": int(len(trades_df)),
+        "wins": int((trades_df["net_pnl"] > 0).sum()) if not trades_df.empty else 0,
+        "losses": int((trades_df["net_pnl"] <= 0).sum()) if not trades_df.empty else 0,
+        "avg_trade_pnl": round(float(trades_df["net_pnl"].mean()), 2) if not trades_df.empty else 0.0,
+    }
+    return summary, trades_df, equity_df
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Livermore-style breakout backtest with pivots, MACD divergence, and trailing stop comparison")
+    parser.add_argument("csv_path", help="Path to OHLCV CSV with timestamp, open, high, low, close, volume")
+    parser.add_argument("--exit-mode", choices=["divergence", "trailing_only"], default="divergence")
+    parser.add_argument("--initial-capital", type=float, default=10000.0)
+    parser.add_argument("--output-dir", default="output")
+    args = parser.parse_args()
+
+    cfg = Config(initial_capital=args.initial_capital)
+    df = load_data(args.csv_path)
+    df = add_indicators(df, cfg)
+    df = apply_pivots(df, cfg)
+    df = detect_divergences(df)
+
+    summary, trades_df, equity_df = run_backtest(df, cfg, exit_mode=args.exit_mode)
+
+    outdir = Path(args.output_dir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    trades_path = outdir / "livermore_backtest_trades.csv"
+    equity_path = outdir / "livermore_backtest_equity.csv"
+    summary_path = outdir / "livermore_backtest_summary.json"
+
+    trades_df.to_csv(trades_path, index=False)
+    equity_df.to_csv(equity_path, index=False)
+    summary_payload = {"config": asdict(cfg), "summary": summary}
+    summary_path.write_text(json.dumps(summary_payload, indent=2), encoding="utf-8")
+
+    print(json.dumps(summary_payload, indent=2))
+
+
+if __name__ == "__main__":
+    main()
