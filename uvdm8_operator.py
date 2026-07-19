@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any, Dict, List
 
 try:
@@ -11,6 +12,7 @@ try:
     load_dotenv()
 except Exception:
     pass
+
 
 @dataclass
 class DeriskStep:
@@ -21,6 +23,7 @@ class DeriskStep:
     redeployable_profit: float
     notes: str
 
+
 DERISK_LADDER: List[DeriskStep] = [
     DeriskStep("accumulation", 7.0, 0.20, 0.40, 0.40, "Use aggression only if risk is controlled and liquidation distance is healthy."),
     DeriskStep("sos_lps", 7.0, 0.35, 0.35, 0.30, "Early markup/SOS/LPS: press edge, but bank hard and prep to step down."),
@@ -30,8 +33,14 @@ DERISK_LADDER: List[DeriskStep] = [
     DeriskStep("markdown", 1.0, 0.60, 0.30, 0.10, "Defensive posture; wait for structure to improve."),
 ]
 
+
 def get_runtime_regime() -> str:
     return os.getenv("UVDM_REGIME", "sos_lps").strip().lower()
+
+
+def get_output_path() -> Path:
+    return Path(os.getenv("UVDM_STATE_PATH", "uvdm8_state.json")).expanduser()
+
 
 def get_derisk_step(regime: str) -> DeriskStep:
     normalized = regime.strip().lower().replace(" ", "_")
@@ -46,6 +55,7 @@ def get_derisk_step(regime: str) -> DeriskStep:
         redeployable_profit=0.20,
         notes="Fallback regime. Stay moderate until structure is clear.",
     )
+
 
 def build_wingman_payload(step: DeriskStep) -> Dict[str, Any]:
     if step.max_leverage <= 1.0:
@@ -68,7 +78,17 @@ def build_wingman_payload(step: DeriskStep) -> Dict[str, Any]:
         "tp3_pct": tp3_pct,
     }
 
-def write_state_for_wingman(step: DeriskStep, path: str = "uvdm8_state.json") -> Dict[str, Any]:
+
+def validate_step(step: DeriskStep) -> None:
+    total = round(step.profit_to_vault + step.profit_to_spot + step.redeployable_profit, 6)
+    if abs(total - 1.0) > 1e-6:
+        raise ValueError(f"Profit allocation must sum to 1.0, got {total} for regime {step.regime}")
+    if step.max_leverage <= 0:
+        raise ValueError(f"Max leverage must be positive for regime {step.regime}")
+
+
+def write_state_for_wingman(step: DeriskStep, path: Path) -> Dict[str, Any]:
+    validate_step(step)
     payload: Dict[str, Any] = {
         "regime": step.regime,
         "max_leverage_today": step.max_leverage,
@@ -78,20 +98,23 @@ def write_state_for_wingman(step: DeriskStep, path: str = "uvdm8_state.json") ->
         "notes": step.notes,
         "wingman": build_wingman_payload(step),
     }
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload
+
 
 def main() -> None:
     regime = get_runtime_regime()
     step = get_derisk_step(regime)
+    output_path = get_output_path()
 
     print("[DE-RISK LADDER]")
     print(json.dumps(asdict(step), indent=2))
 
-    payload = write_state_for_wingman(step)
-    print("[STATE] Wrote uvdm8_state.json for Bitrue Wingman")
+    payload = write_state_for_wingman(step, output_path)
+    print(f"[STATE] Wrote {output_path} for Bitrue Wingman")
     print(json.dumps(payload, indent=2))
+
 
 if __name__ == "__main__":
     main()
