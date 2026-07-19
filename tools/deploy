@@ -1,63 +1,184 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/data/data/com.termux/files/home/NexpertUVDM-Automation"
+BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$BASE"
 
-if [ $# -lt 5 ]; then
-  echo "[!] Usage: deploy <USDT> <ASSET> <spot|futures|f> <LEVx> <live> [PRICE]"
-  echo "Example: deploy 10 xlm spot 1x live"
-  echo "Example: deploy 10 xlm futures 3x live"
+if [ -t 1 ]; then
+  R=$'\u001B[0m'
+  RED=$'\u001B[1;31m'
+  G=$'\u001B[1;32m'
+  Y=$'\u001B[1;33m'
+  B=$'\u001B[1;34m'
+  M=$'\u001B[1;35m'
+  C=$'\u001B[1;36m'
+  W=$'\u001B[1;37m'
+  BOLD=$'\u001B[1m'
+else
+  R=''; RED=''; G=''; Y=''; B=''; M=''; C=''; W=''; BOLD=''
+fi
+
+say() { printf '%b
+' "$*"; }
+speak() {
+  if command -v termux-tts-speak >/dev/null 2>&1; then
+    termux-tts-speak "$*" >/dev/null 2>&1 || true
+  fi
+}
+
+header() {
+  say "${C}==================================================${R}"
+  say "${C}               UVDM AUTO DASHBOARD${R}"
+  say "${C}==================================================${R}"
+}
+
+usage_line() {
+  say "${C}Deploy syntax:${R} ${W}<amount-usdt> <symbol> <spot|long|futures> <1x|3x|5x|7x|10x> <dry|live>${R}"
+  say "${W}Number is always treated as USDT; ${Y}long = futures${W}; ${Y}spot implies 1x${W}.${R}"
+}
+
+amount=""
+asset=""
+mode=""
+lev=""
+style=""
+live=""
+invalid_lev=""
+
+for tok in "$@"; do
+  ltok="${tok,,}"
+  if [[ "$ltok" == "live" ]]; then
+    live="live"
+    continue
+  fi
+  case "$ltok" in
+    dry) continue ;;
+    1|single|single_shot) style="single"; continue ;;
+    2|ladder|limit_ladder) style="ladder"; continue ;;
+  esac
+  if [[ "$ltok" =~ ^([0-9]+([.][0-9]+)?)x$ ]]; then
+    lev_num="${BASH_REMATCH[1]}"
+    if awk "BEGIN {exit !($lev_num >= 1 && $lev_num <= 10)}"; then
+      lev="${lev_num}x"
+    else
+      invalid_lev="$ltok"
+    fi
+    continue
+  fi
+  case "$ltok" in
+    f|futures|future|ft|long) mode="futures"; continue ;;
+    spot) mode="spot"; continue ;;
+  esac
+  case "$ltok" in
+    xlm|xrp|btc|eth|flr|sgb|paxg) asset="$ltok"; continue ;;
+  esac
+  if [[ "$ltok" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    amount="$ltok"
+    continue
+  fi
+done
+
+header
+usage_line
+say
+
+if [ -n "$invalid_lev" ]; then
+  say "${RED}Invalid leverage:${R} ${W}${invalid_lev}${R}"
+fi
+
+while [ -z "$amount" ]; do
+  read -r -p "Enter amount in USDT: " amount
+  [[ "$amount" =~ ^[0-9]+([.][0-9]+)?$ ]] || { say "${RED}Amount must be numeric.${R}"; amount=""; }
+done
+
+while [ -z "$asset" ]; do
+  read -r -p "Enter asset (XLM/XRP/BTC/ETH/FLR/SGB/PAXG): " asset
+  asset="${asset,,}"
+  case "$asset" in
+    xlm|xrp|btc|eth|flr|sgb|paxg) ;;
+    *) say "${RED}Asset must be one of: XLM, XRP, BTC, ETH, FLR, SGB, PAXG.${R}"; asset="" ;;
+  esac
+done
+
+while [ -z "$mode" ]; do
+  read -r -p "Enter mode (spot/futures): " mode
+  mode="${mode,,}"
+  case "$mode" in
+    spot) ;;
+    f|futures|future|ft|long) mode="futures" ;;
+    *) say "${RED}Mode must be 'spot' or 'futures'.${R}"; mode="" ;;
+  esac
+done
+
+if [ "$mode" = "spot" ]; then
+  lev="1x"
+else
+  while [ -z "$lev" ]; do
+    read -r -p "Enter leverage (1x-10x): " lev
+    lev="${lev,,}"
+    if [[ "$lev" =~ ^([0-9]+([.][0-9]+)?)x$ ]]; then
+      lev_num="${BASH_REMATCH[1]}"
+      if awk "BEGIN {exit !($lev_num >= 1 && $lev_num <= 10)}"; then
+        lev="${lev_num}x"
+      else
+        say "${RED}Leverage must be between 1x and 10x.${R}"
+        lev=""
+      fi
+    else
+      say "${RED}Leverage must be between 1x and 10x.${R}"
+      lev=""
+    fi
+  done
+fi
+
+asset_up="${asset^^}"
+
+if [ "$mode" = "futures" ]; then
+  notional_usdt="$(awk -v a="$amount" -v l="${lev%x}" 'BEGIN{printf "%.2f", a*l}')"
+else
+  notional_usdt="$(awk -v a="$amount" 'BEGIN{printf "%.2f", a}')"
+fi
+
+say "${C}[ DEPLOYMENT CONFIGURATION ]${R}"
+say "${W}Asset :${R} ${C}${asset_up}${R}"
+say "${W}Mode  :${R} ${M}${mode}${R}"
+say "${W}Lev   :${R} ${Y}${lev}${R}"
+say "${W}Input :${R} ${W}${amount} USDT${R}"
+say "${W}Ntnl  :${R} ${G}${notional_usdt} USDT${R}"
+say
+
+if [ -z "$style" ]; then
+  say "${C}[ EXECUTION STYLE ]${R}"
+  say "${B}1.${R} ${W}Single shot${R}"
+  say "${B}2.${R} ${W}Limit ladder${R}"
+  read -r -p "Choose option (1/2): " opt
+  case "${opt,,}" in
+    1|single|single_shot) style="single" ;;
+    2|ladder|limit_ladder|"") style="ladder" ;;
+    *) style="ladder" ;;
+  esac
+fi
+
+if [ "$style" = "single" ]; then
+  say "${G}mode_selected${R} ${W}single_shot${R}"
+  say "${W}Payload:${R} ${W}set single shot for ${amount} ${asset_up} ${mode} ${lev}${R}"
+  speak "set single shot for ${amount} ${asset_up} ${mode} ${lev}"
+else
+  say "${Y}mode_selected${R} ${W}limit_ladder${R}"
+  say "${W}Payload:${R} ${W}set limit ladder for ${amount} ${asset_up} ${mode} ${lev}${R}"
+  speak "set limit ladder for ${amount} ${asset_up} ${mode} ${lev}"
+fi
+
+if [ -f "$BASE/tools/uvdm_live.py" ]; then
+  say
+  say "${C}[ ROUTING ]${R}"
+  say "${W}Passing to:${R} ${G}$BASE/tools/uvdm_live.py${R}"
+  python3 "$BASE/tools/uvdm_live.py" "$amount" "$asset_up" long "$lev" "$style" ${live:+$live}
+else
+  say
+  say "${RED}Missing file:${R} ${W}$BASE/tools/uvdm_live.py${R}"
   exit 1
 fi
 
-USDT_AMOUNT="$1"
-ASSET="$(printf '%s' "$2" | tr '[:lower:]' '[:upper:]')"
-MODE="$(printf '%s' "$3" | tr '[:upper:]' '[:lower:]')"
-LEV="$(printf '%s' "$4" | tr '[:upper:]' '[:lower:]')"
-ENV_MODE="$(printf '%s' "$5" | tr '[:upper:]' '[:lower:]')"
-PRICE="${6:-}"
-
-if [ "$MODE" = "f" ]; then
-  MODE="futures"
-fi
-
-SUGGESTED_ROUTE="2"
-SUGGEST_REASON="constructive structure, controlled volatility, ladder favored"
-
-if [ "$MODE" = "spot" ] && [ "$LEV" = "1x" ]; then
-  SUGGESTED_ROUTE="2"
-  SUGGEST_REASON="spot accumulation setup, ladder favored"
-fi
-
-echo "deploy_ready: Set single shot or adaptive ladder for ${USDT_AMOUNT} USDT ${ASSET} ${MODE} ${LEV}"
-echo "Suggested Route : ${SUGGESTED_ROUTE}"
-echo "Reason          : ${SUGGEST_REASON}"
-echo "Voice           : Ron, ${ASSET} ${MODE} is active. Option ${SUGGESTED_ROUTE} is favored, but manual confirmation is required."
-echo "1. Single shot"
-echo "2. Adaptive ladder"
-printf "Choose option (1/2, Enter=%s, auto=%ss): " "$SUGGESTED_ROUTE" "4" > /dev/tty
-
-OPT=""
-if read -r -t 4 OPT < /dev/tty; then
-  OPT="$(printf '%s' "$OPT" | tr -d '[:space:]')"
-else
-  OPT="$SUGGESTED_ROUTE"
-fi
-
-if [ -z "$OPT" ]; then
-  OPT="$SUGGESTED_ROUTE"
-fi
-
-case "$OPT" in
-  1|2) ;;
-  *)
-    echo "[!] Invalid option. Use 1 or 2."
-    exit 1
-    ;;
-esac
-
-if [ -n "$PRICE" ]; then
-  exec python3 "$ROOT/uvdm_live.py" "$USDT_AMOUNT" "$ASSET" "$MODE" "$LEV" "$ENV_MODE" "$PRICE" "$OPT"
-else
-  exec python3 "$ROOT/uvdm_live.py" "$USDT_AMOUNT" "$ASSET" "$MODE" "$LEV" "$ENV_MODE" "$OPT"
-fi
+say
+say "${G}Deployment sequence complete.${R}"

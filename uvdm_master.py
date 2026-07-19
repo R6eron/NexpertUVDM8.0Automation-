@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-uvdm_master_merged.py
+uvdm_master.py
 
 import json
 import os
