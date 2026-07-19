@@ -7,25 +7,27 @@ Jesse100 eternal vigilance - No ccxt needed
 
 import requests
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
-print(f"🚀 UVDM Wingman LIVE - XLM/USDT | {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+print(f"🚀 UVDM Wingman LIVE - XLM/USDT | {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
 print("=" * 60)
 
 PIVOT_FLOOR = 0.1490      # Livermore line in sand
 RISK_BUFFER = 1.10        # 10% drawdown warning
 PROFIT_TARGET = 1.25      # 25% greed cap
 
+
 def get_xlm_price():
     """MEXC public API - No auth needed"""
     try:
-        url = "https://api.mexc.com/api/v3/ticker/price?symbol=XLMUSDT"
-        response = requests.get(url, timeout=10)
+        url = "https://api.mexc.com/api/v3/ticker/price"
+        response = requests.get(url, params={"symbol": "XLMUSDT"}, timeout=10)
         data = response.json()
-        return float(data['price'])
+        return float(data["price"])
     except Exception as e:
         print(f"❌ API Error: {e}")
         return None
+
 
 # MAIN EXECUTION
 price = get_xlm_price()
@@ -33,28 +35,28 @@ price = get_xlm_price()
 if price:
     print(f"📊 Current Price:  ${price:.6f}")
     print(f"🛡️ Pivot Floor:    ${PIVOT_FLOOR:.6f}")
-    
+
     if price <= PIVOT_FLOOR:
         print("🛑 CRITICAL ALERT: BELOW PIVOT → FULL SELL")
         print("   100% position liquidation - Livermore rule #1")
-        
+
     elif price < PIVOT_FLOOR * RISK_BUFFER:
         print("⚠️  HIGH RISK ZONE: Partial sell recommended")
         print(f"   {PIVOT_FLOOR:.6f} - {PIVOT_FLOOR * RISK_BUFFER:.6f}")
         print("   Reduce 50% position - Protect capital")
-        
+
     elif price >= PIVOT_FLOOR * PROFIT_TARGET:
         print("💰 PROFIT ZONE: Take partial profits")
         print(f"   Above {PIVOT_FLOOR * PROFIT_TARGET:.6f}")
         print("   Sell 33% - Let winners run")
-        
+
     else:
         print("✅ SAFE ZONE: Holding above pivot")
         print("   Position protected - No action")
-        
+
 else:
     print("❌ Price fetch failed → Position safe (default hold)")
 
 print("=" * 60)
-print("Jesse100 eternal vigilance | XRPEASY.CO.UK | UDVM Wingman")
-print(f"Cron next: {datetime.now() + timedelta(hours=6)} UTC")
+print("Jesse100 eternal vigilance | XRPeasy Digital Solutions| UVDM Wingman")
+print(f"Cron next: {(datetime.now(timezone.utc) + timedelta(hours=6)).strftime('%Y-%m-%d %H:%M:%S UTC')}")
