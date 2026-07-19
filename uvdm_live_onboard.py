@@ -39,6 +39,10 @@ def hr(color=CYAN):
     return c("-" * min(width, 56), color)
 
 
+def menu_line(num, label, color=WHITE):
+    return c(f"{num}. {label}", color, False)
+
+
 def fetch_json(url, timeout=10):
     ctx = ssl.create_default_context()
     req = urllib.request.Request(
@@ -224,9 +228,9 @@ def ask_choice_asset():
         print()
         print(c("Choose asset or insert your own:", CYAN, True))
         for i, asset in enumerate(ASSETS, 1):
-            print(c(f"{i}. {asset}", WHITE, True))
+            print(menu_line(i, asset, WHITE))
 
-        raw = input(c("Select [1-6] or type ticker: ", YELLOW)).strip()
+        raw = input(c("Select [1-6] or type ticker: ", YELLOW, False)).strip()
         asset = normalize_asset_choice(raw)
 
         if asset:
@@ -239,9 +243,9 @@ def ask_choice_venue():
     while True:
         print()
         print(c("Choose venue:", CYAN, True))
-        print(c("1. Futures", WHITE, True))
-        print(c("2. Spot", WHITE, True))
-        raw = input(c("Select [1-2] or type futures/spot: ", YELLOW)).strip().lower()
+        print(menu_line(1, "Futures", WHITE))
+        print(menu_line(2, "Spot", WHITE))
+        raw = input(c("Select [1-2] or type futures/spot: ", YELLOW, False)).strip().lower()
 
         if raw in ("1", "f", "future", "futures", "long"):
             return "futures"
@@ -311,104 +315,10 @@ def main():
 
     asset = ask_choice_asset()
     venue = ask_choice_venue()
-    deploy_amt = ask_float(c("Deploy amount? ", YELLOW), "0", 0)
-    portfolio_amt = ask_float(c("Portfolio size? [30000] ", YELLOW), "30000", 0)
-
-    use_live = ask(c("Use live FTSO/offchain price first? (y/n) [y] ", YELLOW), "y").lower()
+    deploy_amt = ask_float(c("Deploy amount? ", YELLOW, False), "0", 0)
+    portfolio_amt = ask_float(c("Portfolio size? [30000] ", YELLOW, False), "30000", 0)
 
     px = None
     source = "MANUAL"
 
-    if use_live.startswith("y"):
-        px, source = get_live_ftso_px(asset)
-        if px is None:
-            px, source = get_live_offchain_px(asset)
-
-    if px is None:
-        px = ask_float(c("Current price? ", YELLOW), "0", 0)
-        source = "MANUAL"
-
-    risk_pct = ask_float(c("Stop Loss (SL) % below entry? [5] ", YELLOW), "5", 0) / 100.0
-    target_pct = ask_float(c("Target % above entry? [8] ", YELLOW), "8", 0) / 100.0
-    sharpe = ask_float(c("Sharpe ratio? [3.1] ", YELLOW), "3.1")
-
-    leverage = 1.0
-    if venue == "futures":
-        leverage = ask_float(c("Leverage? max 10x, recommended 7x & under [5] ", YELLOW), "5", 0)
-        leverage = max(1.0, min(leverage, 10.0))
-
-    entry_ref = float(px)
-    stop_px = stop_from_entry(entry_ref, risk_pct)
-    target_px = target_from_entry(entry_ref, target_pct)
-    demand_low, demand_high = demand_zone(entry_ref)
-
-    if venue == "futures":
-        can_onboard, act, lock, status = futures_onboard(px, stop_px, target_px)
-    else:
-        can_onboard, act, lock, status = spot_onboard(px, stop_px, target_px)
-
-    notional = deploy_amt * leverage
-    units = notional / px if px > 0 else 0.0
-    deploy_pct = (deploy_amt / portfolio_amt) * 100.0 if portfolio_amt > 0 else 0.0
-    risk_budget = portfolio_amt * 0.02
-    stop_gap = abs(px - stop_px)
-    sg = sharpe_gate(sharpe)
-    ladder = build_ladder(px, deploy_amt, leverage)
-
-    col = status_color(status)
-    sg_col = status_color(sg)
-
-    print()
-    print(hr())
-    print(c("SUMMARY", CYAN, True))
-    print_kv("Asset", asset)
-    print_kv("Venue", venue)
-    print_kv("Source", source)
-    print_kv("Price", format(px, ".7f"), col)
-    print_kv("Deploy", format(deploy_amt, ".2f"))
-    print_kv("Port", format(portfolio_amt, ".2f"))
-    print_kv("Deploy %", format(deploy_pct, ".2f") + "%")
-    print_kv("Lev", format(leverage, ".2f") + "x")
-    print_kv("Notional", format(notional, ".2f"))
-    print_kv("Units", format(units, ".7f"))
-
-    print(hr())
-    print(c("LEVELS", CYAN, True))
-    print_kv("Entry", format(entry_ref, ".7f"))
-    print_kv("Demand", f"{format(demand_low, '.7f')} -> {format(demand_high, '.7f')}")
-    print_kv("SL", format(stop_px, ".7f"), RED)
-    print_kv("Gap", format(stop_gap, ".7f"))
-    print_kv("Target", format(target_px, ".7f"), GREEN)
-
-    print(hr())
-    print(c("RISK", CYAN, True))
-    print_kv("Budget", format(risk_budget, ".2f"))
-    print_kv("Sharpe", format(sharpe, ".2f"))
-    print_kv("Gate", sg, sg_col)
-
-    print()
-    print(hr())
-    print(c("DECISION", CYAN, True))
-    print_kv("Onboard", str(can_onboard), col)
-    print_kv("Action", act, col)
-    print_kv("Status", status, col)
-    print_kv("Lock", str(lock), col)
-
-    print(hr())
-    print(c("LADDER", CYAN, True))
-    print_ladder(ladder, venue == "futures")
-
-    if venue == "futures":
-        print()
-        print(c("TP doctrine:", CYAN, True))
-        print(c("Move all stops to zero @ +8%", WHITE))
-        print(c("TP1 -> reduce leverage one step", WHITE))
-        print(c("TP2 -> reduce leverage again", WHITE))
-        print(c("TP3 -> move toward 3x or 1x", WHITE))
-
-    print(hr())
-    print()
-
-
-if __name__ == "__main__":
-    main()
+   
