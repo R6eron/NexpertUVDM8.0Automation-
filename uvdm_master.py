@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+uvdm_master_live_ready.py
+
 import json
 import os
 import shutil
 import subprocess
-import sys
 import time
-from dataclasses import dataclass
+import uuid
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 RESET = "\u001B[0m"
 RED = "\u001B[31m"
@@ -23,20 +25,18 @@ BOLD = "\u001B[1m"
 GOLD = "\u001B[93m"
 
 APP_NAME = "UVDM MASTER"
-APP_VERSION = "4.0-skeleton"
+APP_VERSION = "5.0-live-ready"
 ROOT = Path(os.getenv("UVDM_ROOT", str(Path.home() / "NexpertUVDM-Automation")))
 CONFIG_DIR = ROOT / "config"
-VOICE_DIR = ROOT / "voice"
 LOG_DIR = ROOT / "logs"
 OUTPUT_DIR = ROOT / "output"
-
 STATE_PATH = Path(os.getenv("UVDM_STATE_FILE", str(Path.home() / ".xrpeasy_onboarding_state.json")))
 LEGACY_IDENTITY_FILE = ROOT / "uvdm_identity.json"
-EXECUTION_LOG = ROOT / "execution_log.jsonl"
-CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-VOICE_DIR.mkdir(parents=True, exist_ok=True)
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+EXECUTION_LOG = LOG_DIR / "execution_log.jsonl"
+RECEIPT_DIR = LOG_DIR / "receipts"
+
+for d in (CONFIG_DIR, LOG_DIR, OUTPUT_DIR, RECEIPT_DIR):
+    d.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass
@@ -46,10 +46,35 @@ class UserProfile:
     confirms: int
     cooldown: int
     max_pct: float
+    live_enabled: bool
 
 
-FOUNDER = UserProfile("founder", "XRPeasy Digital Solutions Founder", 2, 5, 0.05)
-HEIR = UserProfile("heir", "XRPeasy Digital Solutions Heir", 7, 30, 0.01)
+@dataclass
+class OrderIntent:
+    intent_id: str
+    ts: str
+    user_key: str
+    user_name: str
+    identity_name: str
+    identity_number: str
+    venue: str
+    mode: str
+    market: str
+    symbol: str
+    side: str
+    portfolio_usd: float
+    notional_usd: float
+    leverage: float
+    max_pct: float
+    limit_value_usd: float
+    stop_loss_pct: Optional[float] = None
+    tp_ladder: List[Dict[str, Any]] = field(default_factory=list)
+    notes: str = ""
+    idempotency_key: str = ""
+
+
+FOUNDER = UserProfile("founder", "XRPeasy Digital Solutions Founder", 2, 5, 0.05, True)
+HEIR = UserProfile("heir", "XRPeasy Digital Solutions Heir", 7, 30, 0.01, False)
 
 
 class IdentityManager:
@@ -117,42 +142,22 @@ class IdentityManager:
         }
 
 
-class AuditLogger:
-    def __init__(self, log_path: Path = EXECUTION_LOG):
+class Journal:
+    def __init__(self, log_path: Path = EXECUTION_LOG, receipt_dir: Path = RECEIPT_DIR):
         self.log_path = log_path
+        self.receipt_dir = receipt_dir
 
-    def log_event(
-        self,
-        user: Optional[UserProfile],
-        identity: Optional[Dict[str, Any]],
-        portfolio: float,
-        symbol: str,
-        side: str,
-        notional: float,
-        status: str,
-        reason: str,
-        limit_value: float,
-        extra: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        record = {
-            "ts": utc_now(),
-            "user_key": user.key if user else None,
-            "user_name": user.name if user else None,
-            "digital_immortal_name": identity.get("digital_immortal_name") if identity else None,
-            "digital_immortal_number": identity.get("digital_immortal_number") if identity else None,
-            "portfolio_value_usd": portfolio,
-            "max_trade_pct_of_portfolio": getattr(user, "max_pct", None) if user else None,
-            "derived_max_notional_usd": limit_value,
-            "symbol": symbol,
-            "side": side,
-            "requested_notional_usd": notional,
-            "status": status,
-            "reason": reason,
-            "extra": extra or {},
-        }
+    def append(self, event: Dict[str, Any]) -> None:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         with self.log_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(record) + "\n")
+            f.write(json.dumps(event) + "
+")
+
+    def write_receipt(self, intent: OrderIntent, payload: Dict[str, Any]) -> Path:
+        self.receipt_dir.mkdir(parents=True, exist_ok=True)
+        receipt_path = self.receipt_dir / f"{intent.intent_id}.json"
+        receipt_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return receipt_path
 
 
 class TTS:
@@ -165,11 +170,113 @@ class TTS:
             pass
 
 
+class RiskEngine:
+    def validate(self, user: UserProfile, intent: OrderIntent) -> None:
+        if intent.notional_usd <= 0:
+            raise ValueError("Notional must be greater than zero")
+        if intent.portfolio_usd <= 0:
+            raise ValueError("Portfolio value must be greater than zero")
+        if intent.notional_usd > intent.limit_value_usd:
+            raise ValueError(
+                f"Requested ${intent.notional_usd:,.2f} exceeds allowed max ${intent.limit_value_usd:,.2f}"
+            )
+        if intent.mode == "live" and not user.live_enabled:
+            raise ValueError(f"Live mode not permitted for profile {user.name}")
+        if intent.market == "spot" and intent.leverage != 1.0:
+            raise ValueError("Spot market must use 1x leverage")
+        if intent.leverage <= 0:
+            raise ValueError("Leverage must be positive")
+        if intent.venue not in {"paper_router", "spot_router", "xrpl_amm", "live_router"}:
+            raise ValueError(f"Unsupported venue: {intent.venue}")
+
+
+class ExecutionAdapter:
+    name = "base"
+
+    def preview_order(self, intent: OrderIntent) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def validate_order(self, intent: OrderIntent) -> None:
+        raise NotImplementedError
+
+    def place_order(self, intent: OrderIntent) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def cancel_order(self, order_id: str) -> Dict[str, Any]:
+        return {"status": "not_implemented", "order_id": order_id}
+
+    def sync_positions(self) -> Dict[str, Any]:
+        return {"status": "not_implemented", "positions": []}
+
+
+class DryRunAdapter(ExecutionAdapter):
+    name = "dry_run"
+
+    def preview_order(self, intent: OrderIntent) -> Dict[str, Any]:
+        return {
+            "adapter": self.name,
+            "mode": intent.mode,
+            "status": "preview",
+            "intent": asdict(intent),
+            "message": "Dry-run preview generated. No live order sent.",
+        }
+
+    def validate_order(self, intent: OrderIntent) -> None:
+        return None
+
+    def place_order(self, intent: OrderIntent) -> Dict[str, Any]:
+        return {
+            "adapter": self.name,
+            "status": "simulated",
+            "intent_id": intent.intent_id,
+            "simulated_order_id": f"dry-{intent.intent_id[:8]}",
+            "message": "Dry-run only. Execution intentionally simulated.",
+        }
+
+
+class LiveGateAdapter(ExecutionAdapter):
+    name = "live_gate"
+
+    def preview_order(self, intent: OrderIntent) -> Dict[str, Any]:
+        return {
+            "adapter": self.name,
+            "mode": intent.mode,
+            "status": "preview",
+            "intent": asdict(intent),
+            "message": "Live-gated adapter prepared. Broker-specific placement is not wired in this skeleton.",
+        }
+
+    def validate_order(self, intent: OrderIntent) -> None:
+        required = [intent.symbol, intent.side, intent.market, intent.venue]
+        if any(not x for x in required):
+            raise ValueError("Missing required live execution fields")
+        if intent.mode != "live":
+            raise ValueError("Live adapter requires intent.mode == 'live'")
+
+    def place_order(self, intent: OrderIntent) -> Dict[str, Any]:
+        return {
+            "adapter": self.name,
+            "status": "gated",
+            "intent_id": intent.intent_id,
+            "message": "Live gate passed, but broker-specific order placement is intentionally not implemented in this framework skeleton.",
+        }
+
+
+class Router:
+    def __init__(self):
+        self.dry_run = DryRunAdapter()
+        self.live_gate = LiveGateAdapter()
+
+    def get_adapter(self, mode: str) -> ExecutionAdapter:
+        return self.live_gate if mode == "live" else self.dry_run
+
+
 class MasterConsole:
-    def __init__(self, identity_manager: IdentityManager, audit: AuditLogger):
-        self.identity_manager = identity_manager
-        self.audit = audit
-        self.identity = self.identity_manager.get_identity()
+    def __init__(self, identity_manager: IdentityManager, journal: Journal, risk: RiskEngine, router: Router):
+        self.identity = identity_manager.get_identity()
+        self.journal = journal
+        self.risk = risk
+        self.router = router
 
     def show_banner(self) -> None:
         print(f"{BOLD}{CYAN}UVDM Wingman TM 2025{RESET}")
@@ -178,145 +285,120 @@ class MasterConsole:
         print(f"{GOLD}Process over outcome..{RESET}")
         print(f"{GOLD}No fear or Greed if you hope to succeed..{RESET}")
         print(f"{GREEN}Tape is the only source of Truth{RESET}")
-        print(f"{MAGENTA}{APP_NAME} v{APP_VERSION}{RESET}")
-        print("")
-        TTS.speak("U V D M master online, sir.")
-
-    def select_venue(self) -> str:
-        print("Select venue:")
-        print("1) Spot / CEX / DEX")
-        print("2) XRPL AMM (paper mode)")
-        print("3) Live execution router")
-        ans = input("> ").strip()
-        if ans == "2":
-            return "xrpl_amm"
-        if ans == "3":
-            return "live_router"
-        return "spot"
+        print(f"{MAGENTA}{APP_NAME} v{APP_VERSION}{RESET}
+")
+        TTS.speak("U V D M live ready framework online, sir.")
 
     def select_profile(self) -> UserProfile:
         print("Select profile:")
         print("1) Founder")
         print("2) XRPeasy Digital Solutions Heir")
-        ans = input("> ").strip()
-        if ans == "2":
-            return HEIR
-        return FOUNDER
+        return HEIR if input("> ").strip() == "2" else FOUNDER
 
-    def check_limit(self, user: UserProfile, portfolio: float, notional: float) -> float:
-        limit_value = portfolio * user.max_pct
-        if notional > limit_value:
-            raise ValueError(
-                f"Requested ${notional:,.2f} exceeds {user.max_pct * 100:.2f}% of portfolio "
-                f"(${limit_value:,.2f}) for {user.name}."
-            )
-        return limit_value
+    def select_mode(self) -> str:
+        print("Select mode:")
+        print("1) Dry-run")
+        print("2) Live-gated")
+        return "live" if input("> ").strip() == "2" else "dry"
 
-    def confirm_and_build_instruction(self, user: UserProfile) -> Optional[Dict[str, Any]]:
-        print("")
+    def select_market(self) -> str:
+        print("Select market:")
+        print("1) Spot")
+        print("2) Futures")
+        return "futures" if input("> ").strip() == "2" else "spot"
+
+    def select_venue(self, mode: str, market: str) -> str:
+        if mode == "live":
+            return "live_router"
+        if market == "spot":
+            return "spot_router"
+        return "paper_router"
+
+    def build_intent(self, user: UserProfile, mode: str, market: str, venue: str) -> Optional[OrderIntent]:
         portfolio = prompt_money("Current total portfolio value in USD: ")
         symbol = get_symbol()
         side = get_side()
+        leverage = 1.0 if market == "spot" else prompt_leverage("Leverage (e.g. 3): ")
 
         while True:
-            raw = input("Notional in USD (or 'profile' / 'quit'): ").strip().lower()
-            if raw in ("quit", "q", "exit"):
-                self.audit.log_event(user, self.identity, portfolio, symbol, side, 0.0, "aborted", "Operator quit at notional prompt", portfolio * user.max_pct)
+            raw = input("Notional in USD (or 'quit'): ").strip().lower()
+            if raw in {"quit", "q", "exit"}:
                 return None
-            if raw in ("profile", "p"):
-                self.audit.log_event(user, self.identity, portfolio, symbol, side, 0.0, "aborted", "Operator requested profile change", portfolio * user.max_pct)
-                return {"action": "profile_change"}
             try:
                 notional = parse_money(raw)
                 if notional <= 0:
                     print("Notional must be greater than zero, sir.")
                     continue
+                break
             except ValueError:
                 print("Invalid notional, sir. Try 500, 5000, 50k, or 1.2m.")
-                continue
 
-            try:
-                limit_value = self.check_limit(user, portfolio, notional)
-                break
-            except ValueError as e:
-                limit_value = portfolio * user.max_pct
-                print(f"{RED}Oversized instruction, sir.{RESET}")
-                print(str(e))
-                self.audit.log_event(user, self.identity, portfolio, symbol, side, notional, "rejected_oversized", str(e), limit_value)
+        limit_value = portfolio * user.max_pct
+        intent = OrderIntent(
+            intent_id=str(uuid.uuid4()),
+            ts=utc_now(),
+            user_key=user.key,
+            user_name=user.name,
+            identity_name=self.identity["digital_immortal_name"],
+            identity_number=self.identity["digital_immortal_number"],
+            venue=venue,
+            mode=mode,
+            market=market,
+            symbol=symbol,
+            side=side,
+            portfolio_usd=portfolio,
+            notional_usd=notional,
+            leverage=leverage,
+            max_pct=user.max_pct,
+            limit_value_usd=limit_value,
+            stop_loss_pct=1.0 if market == "spot" else 0.8,
+            tp_ladder=[
+                {"take_profit_pct": 1.0, "size": 0.25},
+                {"take_profit_pct": 2.0, "size": 0.25},
+                {"take_profit_pct": 3.0, "size": 0.50},
+            ],
+            notes="Dry-run/live-gated framework intent",
+            idempotency_key=f"{user.key}-{symbol}-{side}-{int(time.time())}",
+        )
+        self.risk.validate(user, intent)
+        return intent
 
+    def confirm_intent(self, user: UserProfile, intent: OrderIntent) -> bool:
         print("")
-        print(f"{user.name}, bound to {self.identity['digital_immortal_name']} #{self.identity['digital_immortal_number']}.")
-        print(f"Portfolio: ${portfolio:,.2f} | Policy: {user.max_pct * 100:.2f}% per instruction (max ${limit_value:,.2f}).")
-        print(f"You are about to {side} {symbol} for approximately ${notional:,.2f}.")
-        TTS.speak(f"Confirmation required. {side} {symbol} for approximately {notional:,.2f} dollars.")
-
+        print(f"{user.name}, bound to {intent.identity_name} #{intent.identity_number}.")
+        print(f"Portfolio: ${intent.portfolio_usd:,.2f} | Policy: {intent.max_pct * 100:.2f}% per instruction (max ${intent.limit_value_usd:,.2f}).")
+        print(f"About to {intent.side} {intent.symbol} for approximately ${intent.notional_usd:,.2f} on {intent.market} in {intent.mode} mode.")
+        TTS.speak(f"Confirmation required. {intent.side} {intent.symbol} for approximately {intent.notional_usd:,.2f} dollars.")
         for i in range(1, user.confirms + 1):
             q = f"Confirmation {i} of {user.confirms}: execute, sir?" if i < user.confirms else f"Confirmation {i} of {user.confirms}: final answer - execute now, sir?"
             if not prompt_yes_no(q):
-                self.audit.log_event(user, self.identity, portfolio, symbol, side, notional, "cancelled", f"User declined at confirmation {i}", limit_value)
-                return None
+                return False
             if i < user.confirms and user.cooldown > 0:
                 time.sleep(user.cooldown)
+        return True
 
-        instruction = {
-            "status": "confirmed",
-            "venue": "spot",
-            "user_key": user.key,
-            "user_name": user.name,
-            "identity_name": self.identity["digital_immortal_name"],
-            "identity_number": self.identity["digital_immortal_number"],
-            "portfolio_usd": portfolio,
-            "max_pct": user.max_pct,
-            "limit_value_usd": limit_value,
-            "symbol": symbol,
-            "side": side,
-            "notional_usd": notional,
-            "ts": utc_now(),
-        }
-        self.audit.log_event(user, self.identity, portfolio, symbol, side, notional, "confirmed", "Instruction confirmed by operator", limit_value, extra=instruction)
-        return instruction
+    def execute(self, user: UserProfile, intent: OrderIntent) -> None:
+        adapter = self.router.get_adapter(intent.mode)
+        preview = adapter.preview_order(intent)
+        self.journal.append({"ts": utc_now(), "type": "preview", "intent_id": intent.intent_id, "payload": preview})
+        receipt_payload = {"intent": asdict(intent), "preview": preview}
+        receipt_path = self.journal.write_receipt(intent, receipt_payload)
+        print(f"{CYAN}Execution preview{RESET}")
+        print(json.dumps(preview, indent=2))
+        print(f"Receipt: {receipt_path}")
 
-    def xrpl_amm_paper_flow(self) -> None:
-        print("")
-        print(f"{CYAN}XRPL AMM PAPER MODE (no live submission), sir.{RESET}")
-        xrpl_address = prompt_nonempty("XRPL account address (r...): ")
-        print("Select XRPL AMM action:")
-        print("1) AMM Deposit")
-        print("2) AMM Withdraw")
-        print("3) Swap via AMM/DEX")
-        action_choice = input("> ").strip()
-        action_map = {"1": "amm_deposit", "2": "amm_withdraw", "3": "swap"}
-        action = action_map.get(action_choice)
-        if not action:
-            print("Unknown action, sir. Returning to shell.")
+        if not self.confirm_intent(user, intent):
+            self.journal.append({"ts": utc_now(), "type": "cancelled", "intent_id": intent.intent_id, "reason": "User declined confirmation"})
+            print(f"{RED}Instruction cancelled by operator.{RESET}")
             return
-        amm_pair = prompt_nonempty("AMM pair (e.g. XLM/XRP): ").upper()
-        base_asset, quote_asset = (amm_pair.split("/", 1) + ["XRP"])[:2] if "/" in amm_pair else (amm_pair, "XRP")
-        amount_base = prompt_money(f"Amount in {base_asset}: ")
-        print(f"{MAGENTA}XRPL AMM PAPER PREVIEW{RESET}")
-        print(f"Account: {xrpl_address}")
-        print(f"Action:  {action}")
-        print(f"Pool:    {base_asset}/{quote_asset}")
-        print(f"Amount:  {amount_base:,.6f} {base_asset}")
-        if not prompt_yes_no("Does this preview match your intended XRPL AMM instruction, sir?"):
-            self.audit.log_event(None, self.identity, 0.0, f"{base_asset}/{quote_asset}", action, 0.0, "cancelled_preview", "Operator cancelled XRPL AMM paper preview", 0.0, extra={"venue": "xrpl_amm", "xrpl_address": xrpl_address, "mode": "paper"})
-            return
-        self.audit.log_event(None, self.identity, 0.0, f"{base_asset}/{quote_asset}", action, amount_base, "executed_paper", "XRPL AMM paper flow completed", 0.0, extra={"venue": "xrpl_amm", "xrpl_address": xrpl_address, "mode": "paper"})
-        print("XRPL AMM PAPER execution recorded (no on-ledger submission).")
 
-
-class Router:
-    def __init__(self, root: Path = ROOT):
-        self.root = root
-
-    def route_live_execution(self) -> None:
-        print(f"{CYAN}Live execution router placeholder{RESET}")
-        print("Hook this to uvdm_live.py, det_trigger.py, wyckoff_trend_wrapper_v2.py, or guard modules.")
-
-    def route_confirmed_instruction(self, instruction: Dict[str, Any]) -> None:
-        print(f"{GREEN}Instruction confirmed and ready for downstream routing.{RESET}")
-        print(json.dumps(instruction, indent=2))
-        print("Next hook: map symbol/venue/mode into live deploy adapters.")
+        adapter.validate_order(intent)
+        result = adapter.place_order(intent)
+        self.journal.append({"ts": utc_now(), "type": "execution_result", "intent_id": intent.intent_id, "payload": result})
+        final_receipt = {"intent": asdict(intent), "preview": preview, "result": result}
+        self.journal.write_receipt(intent, final_receipt)
+        print(f"{GREEN}Execution result{RESET}")
+        print(json.dumps(result, indent=2))
 
 
 def utc_now() -> str:
@@ -357,6 +439,19 @@ def prompt_money(label: str) -> float:
             print("Invalid amount, sir. Try 500, 5000, 50k, or 1.2m.")
 
 
+def prompt_leverage(label: str) -> float:
+    while True:
+        raw = input(label).strip()
+        try:
+            lev = float(raw)
+            if lev <= 0:
+                print("Leverage must be greater than zero, sir.")
+                continue
+            return lev
+        except ValueError:
+            print("Invalid leverage, sir. Try 3 or 5.")
+
+
 def prompt_yes_no(question: str) -> bool:
     while True:
         ans = input(f"{question} [yes/no]: ").strip().lower()
@@ -391,33 +486,27 @@ def get_side() -> str:
 
 def main() -> int:
     identity_manager = IdentityManager()
-    audit = AuditLogger()
-    console = MasterConsole(identity_manager, audit)
+    journal = Journal()
+    risk = RiskEngine()
     router = Router()
+    console = MasterConsole(identity_manager, journal, risk, router)
 
     console.show_banner()
-    venue = console.select_venue()
-
-    if venue == "xrpl_amm":
-        console.xrpl_amm_paper_flow()
-        return 0
-
-    if venue == "live_router":
-        router.route_live_execution()
-        return 0
-
     user = console.select_profile()
-    instruction = console.confirm_and_build_instruction(user)
-    if not instruction:
-        return 0
-    if instruction.get("action") == "profile_change":
-        user = console.select_profile()
-        instruction = console.confirm_and_build_instruction(user)
-        if not instruction or instruction.get("action") == "profile_change":
+    mode = console.select_mode()
+    market = console.select_market()
+    venue = console.select_venue(mode, market)
+    try:
+        intent = console.build_intent(user, mode, market, venue)
+        if intent is None:
+            print(f"{YELLOW}No instruction created.{RESET}")
             return 0
-
-    router.route_confirmed_instruction(instruction)
-    return 0
+        console.execute(user, intent)
+        return 0
+    except ValueError as e:
+        print(f"{RED}Validation failed: {e}{RESET}")
+        journal.append({"ts": utc_now(), "type": "validation_failed", "reason": str(e)})
+        return 2
 
 
 if __name__ == "__main__":
