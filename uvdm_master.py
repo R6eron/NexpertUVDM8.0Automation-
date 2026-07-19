@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-uvdm_master_live_ready.py
+uvdm_master_merged.py
 
 import json
 import os
@@ -14,6 +14,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+try:
+    from wyckoff_trend_wrapper_v2 import WyckoffTrendWrapper
+except Exception:
+    WyckoffTrendWrapper = None
+
 RESET = "\u001B[0m"
 RED = "\u001B[31m"
 GREEN = "\u001B[32m"
@@ -25,7 +30,7 @@ BOLD = "\u001B[1m"
 GOLD = "\u001B[93m"
 
 APP_NAME = "UVDM MASTER"
-APP_VERSION = "5.0-live-ready"
+APP_VERSION = "5.1-merged"
 ROOT = Path(os.getenv("UVDM_ROOT", str(Path.home() / "NexpertUVDM-Automation")))
 CONFIG_DIR = ROOT / "config"
 LOG_DIR = ROOT / "logs"
@@ -271,12 +276,65 @@ class Router:
         return self.live_gate if mode == "live" else self.dry_run
 
 
+class WyckoffDashboard:
+    def __init__(self, journal: Journal):
+        self.journal = journal
+
+    def run_auto_dashboard(self) -> None:
+        print("=" * 50)
+        print(" UVDM AUTO DASHBOARD ".center(50))
+        print("=" * 50)
+
+        if WyckoffTrendWrapper is None:
+            print(f"{YELLOW}wyckoff_trend_wrapper_v2.py not available. Dashboard disabled.{RESET}")
+            self.journal.append({"ts": utc_now(), "type": "dashboard_unavailable", "reason": "wyckoff_trend_wrapper_v2 import failed"})
+            return
+
+        wrapper = WyckoffTrendWrapper()
+        tape_states = [
+            ("FLR", "Phase B accumulation", "ST", "ST", "Testing supply. Waiting for Spring or SOS."),
+            ("SGB", "Phase D accumulation", "SOS -> LPS", "LPS", "Demand holding support."),
+            ("PAXG", "Phase A stopping action", "SC -> AR", "SC", "Violent selloff mapped. Wait."),
+            ("XLM", "Phase D accumulation", "SOS -> BUEC -> LPS", "LPS", "Narrowing spreads on back-up."),
+        ]
+
+        results = []
+        for state in tape_states:
+            try:
+                res = wrapper.process_tape_event(*state)
+                results.append(res)
+            except Exception as e:
+                print(f"{RED}[ERROR]{RESET} {state[0]} -> {e}")
+                self.journal.append({"ts": utc_now(), "type": "dashboard_error", "asset": state[0], "reason": str(e)})
+
+        print("")
+        print("[ AUTO SUMMARY VIEW ]")
+        for r in results:
+            print(r.get("cockpit_summary", "<missing summary>"))
+
+        print("")
+        print("[ DETAILED ASSET STRUCTURE ]")
+        for r in results:
+            print(r.get("cockpit_detail", "<missing detail>"))
+            print("-" * 40)
+
+        print("")
+        print("[ EXECUTION ROUTING TO UVDM_LIVE.PY ]")
+        for r in results:
+            asset = r.get("asset", "UNKNOWN")
+            action_tag = r.get("action_tag", "none")
+            print(f"Routing {asset.ljust(5)} -> action_tag: {action_tag}")
+
+        self.journal.append({"ts": utc_now(), "type": "dashboard_run", "assets": [r.get("asset") for r in results], "count": len(results)})
+
+
 class MasterConsole:
     def __init__(self, identity_manager: IdentityManager, journal: Journal, risk: RiskEngine, router: Router):
         self.identity = identity_manager.get_identity()
         self.journal = journal
         self.risk = risk
         self.router = router
+        self.dashboard = WyckoffDashboard(journal)
 
     def show_banner(self) -> None:
         print(f"{BOLD}{CYAN}UVDM Wingman TM 2025{RESET}")
@@ -287,7 +345,13 @@ class MasterConsole:
         print(f"{GREEN}Tape is the only source of Truth{RESET}")
         print(f"{MAGENTA}{APP_NAME} v{APP_VERSION}{RESET}
 ")
-        TTS.speak("U V D M live ready framework online, sir.")
+        TTS.speak("U V D M merged framework online, sir.")
+
+    def select_main_action(self) -> str:
+        print("Select action:")
+        print("1) Execution framework")
+        print("2) Wyckoff auto dashboard")
+        return "dashboard" if input("> ").strip() == "2" else "execution"
 
     def select_profile(self) -> UserProfile:
         print("Select profile:")
@@ -357,7 +421,7 @@ class MasterConsole:
                 {"take_profit_pct": 2.0, "size": 0.25},
                 {"take_profit_pct": 3.0, "size": 0.50},
             ],
-            notes="Dry-run/live-gated framework intent",
+            notes="Merged dashboard + dry-run/live-gated framework intent",
             idempotency_key=f"{user.key}-{symbol}-{side}-{int(time.time())}",
         )
         self.risk.validate(user, intent)
@@ -492,6 +556,11 @@ def main() -> int:
     console = MasterConsole(identity_manager, journal, risk, router)
 
     console.show_banner()
+    action = console.select_main_action()
+    if action == "dashboard":
+        console.dashboard.run_auto_dashboard()
+        return 0
+
     user = console.select_profile()
     mode = console.select_mode()
     market = console.select_market()
