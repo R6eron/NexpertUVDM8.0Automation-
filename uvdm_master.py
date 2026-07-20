@@ -1,4 +1,4 @@
-cd \~/NexpertUVDM-Automation
+cd ~/NexpertUVDM-Automation
 
 cat > uvdm_master.py << 'EOF'
 #!/usr/bin/env python3
@@ -31,7 +31,7 @@ BOLD = "\u001B[1m"
 GOLD = "\u001B[93m"
 
 APP_NAME = "UVDM MASTER"
-APP_VERSION = "6.0-clean"
+APP_VERSION = "6.1-riskflow"
 ROOT = Path(os.getenv("UVDM_ROOT", str(Path.home() / "NexpertUVDM-Automation")))
 CONFIG_DIR = ROOT / "config"
 LOG_DIR = ROOT / "logs"
@@ -69,10 +69,13 @@ class OrderIntent:
     symbol: str
     side: str
     portfolio_usd: float
+    usdt_amount: float
     notional_usd: float
+    asset_amount: float
     leverage: float
     max_pct: float
     limit_value_usd: float
+    entry_style: str = "ladder"
     stop_loss_pct: Optional[float] = None
     tp_ladder: List[Dict[str, Any]] = field(default_factory=list)
     notes: str = ""
@@ -81,6 +84,7 @@ class OrderIntent:
 
 FOUNDER = UserProfile("founder", "XRPeasy Digital Solutions Founder", 2, 5, 0.05, True)
 HEIR = UserProfile("heir", "XRPeasy Digital Solutions Heir", 7, 30, 0.01, False)
+NEW_USER = UserProfile("new_user", "New User", 2, 3, 0.02, False)
 
 
 def utc_now() -> str:
@@ -88,7 +92,7 @@ def utc_now() -> str:
 
 
 def parse_money(text: str) -> float:
-    s = text.strip().lower().replace(",", "").replace("$", "")
+    s = text.strip().lower().replace(",", "").replace("$", "").replace("usdt", "").strip()
     mult = 1.0
     if s.endswith("k"):
         mult = 1000.0
@@ -97,6 +101,32 @@ def parse_money(text: str) -> float:
         mult = 1000000.0
         s = s[:-1]
     return float(s) * mult
+
+
+def smart_round(value: float) -> float:
+    if value >= 1000:
+        return round(value / 50.0) * 50.0
+    if value >= 100:
+        return round(value / 10.0) * 10.0
+    if value >= 10:
+        return round(value / 2.0) * 2.0
+    return round(value, 4)
+
+
+def leverage_colour(leverage: float) -> str:
+    if leverage >= 10:
+        return RED
+    if leverage >= 7:
+        return YELLOW
+    return GREEN
+
+
+def format_compact(value: float, decimals: int = 2) -> str:
+    if value >= 1000000:
+        return f"{value / 1000000:.2f}m"
+    if value >= 1000:
+        return f"{value / 1000:.2f}k"
+    return f"{value:.{decimals}f}"
 
 
 class TTS:
@@ -138,15 +168,18 @@ def prompt_money(label: str) -> float:
 
 def prompt_leverage(label: str) -> float:
     while True:
-        raw = input(label).strip()
+        raw = input(label).strip().lower().replace("x", "")
         try:
             lev = float(raw)
             if lev <= 0:
                 print("Leverage must be greater than zero, sir.")
                 continue
+            if lev > 10:
+                print("Max leverage is 10x, sir. Recommendation remains 5x.")
+                continue
             return lev
         except ValueError:
-            print("Invalid leverage, sir. Try 3 or 5.")
+            print("Invalid leverage, sir. Try 3, 5, 7, or 10.")
 
 
 def prompt_yes_no(question: str) -> bool:
@@ -165,7 +198,7 @@ def get_symbol() -> str:
         if not symbol:
             print("Symbol cannot be empty, sir.")
             continue
-        if "/" not in symbol and len(symbol) >= 6:
+        if "/" not in symbol and len(symbol) >= 6 and symbol.endswith("USDT"):
             base = symbol[:-4]
             quote = symbol[-4:]
             symbol = f"{base}/{quote}"
@@ -173,12 +206,8 @@ def get_symbol() -> str:
         return symbol
 
 
-def get_side() -> str:
-    while True:
-        side = input("Side (buy/sell): ").strip().lower()
-        if side in ("buy", "sell"):
-            return side
-        print("Side must be buy or sell, sir.")
+def extract_base_symbol(symbol: str) -> str:
+    return symbol.split("/")[0].upper()
 
 
 class IdentityManager:
@@ -217,32 +246,45 @@ class IdentityManager:
                 "source": "legacy",
                 "digital_immortal_name": first_user.get("digital_immortal_name", "UVDM Legacy User"),
                 "digital_immortal_number": first_user.get("digital_immortal_number", "legacy-unset"),
-                "first_user_hex": None,
+                "first_user_hex": first_user.get("first_user_hex"),
                 "device_label": None,
                 "state": legacy,
             }
 
-        return self.bootstrap_legacy_identity()
+        return {"source": "unbound", "digital_immortal_name": "UNBOUND", "digital_immortal_number": "UNBOUND"}
 
-    def bootstrap_legacy_identity(self) -> Dict[str, Any]:
-        print(f"{CYAN}First-user identity setup required, sir.{RESET}")
-        name = prompt_nonempty("Digital Immortal Name: ")
-        number = prompt_nonempty("Digital Immortal Number: ")
-        data = {
-            "first_user": {
-                "digital_immortal_name": name,
-                "digital_immortal_number": number,
-                "bound_at": utc_now(),
-            }
+    def require_onboarding_binding(self) -> Dict[str, Any]:
+        print(f"{CYAN}First-use onboarding and binding required, sir.{RESET}")
+        print("Open onboarding flow and bind from book with the first-user hex.")
+        first_user_hex = prompt_nonempty("First-user hex from book: ")
+        identity_name = prompt_nonempty("Digital Immortal Name: ")
+        identity_number = prompt_nonempty("Digital Immortal Number: ")
+        state = {
+            "identity_bound": True,
+            "display_identity": identity_name,
+            "immortal_id": identity_number,
+            "first_user_hex": first_user_hex,
+            "bound_at": utc_now(),
         }
-        self.save_json(self.legacy_path, data)
+        self.save_json(self.state_path, state)
+        self.save_json(
+            self.legacy_path,
+            {
+                "first_user": {
+                    "digital_immortal_name": identity_name,
+                    "digital_immortal_number": identity_number,
+                    "first_user_hex": first_user_hex,
+                    "bound_at": state["bound_at"],
+                }
+            },
+        )
         return {
-            "source": "legacy",
-            "digital_immortal_name": name,
-            "digital_immortal_number": number,
-            "first_user_hex": None,
+            "source": "state",
+            "digital_immortal_name": identity_name,
+            "digital_immortal_number": identity_number,
+            "first_user_hex": first_user_hex,
             "device_label": None,
-            "state": data,
+            "state": state,
         }
 
 
@@ -254,7 +296,8 @@ class Journal:
     def append(self, event: Dict[str, Any]) -> None:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         with self.log_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(event) + "\n")
+            f.write(json.dumps(event) + "
+")
 
     def write_receipt(self, intent: OrderIntent, payload: Dict[str, Any]) -> Path:
         self.receipt_dir.mkdir(parents=True, exist_ok=True)
@@ -265,20 +308,22 @@ class Journal:
 
 class RiskEngine:
     def validate(self, user: UserProfile, intent: OrderIntent) -> None:
+        if intent.usdt_amount <= 0:
+            raise ValueError("Actual USDT amount must be greater than zero")
         if intent.notional_usd <= 0:
             raise ValueError("Notional must be greater than zero")
         if intent.portfolio_usd <= 0:
             raise ValueError("Portfolio value must be greater than zero")
-        if intent.notional_usd > intent.limit_value_usd:
+        if intent.usdt_amount > intent.limit_value_usd:
             raise ValueError(
-                f"Requested ${intent.notional_usd:,.2f} exceeds allowed max ${intent.limit_value_usd:,.2f}"
+                f"Requested actual USDT ${intent.usdt_amount:,.2f} exceeds allowed max ${intent.limit_value_usd:,.2f}"
             )
         if intent.mode == "live" and not user.live_enabled:
             raise ValueError(f"Live mode not permitted for profile {user.name}")
         if intent.market == "spot" and intent.leverage != 1.0:
             raise ValueError("Spot market must use 1x leverage")
-        if intent.leverage <= 0:
-            raise ValueError("Leverage must be positive")
+        if intent.leverage <= 0 or intent.leverage > 10:
+            raise ValueError("Leverage must be between 1x and 10x")
         if intent.venue not in {"paper_router", "spot_router", "xrpl_amm", "live_router"}:
             raise ValueError(f"Unsupported venue: {intent.venue}")
 
@@ -433,11 +478,16 @@ class WyckoffDashboard:
 
 class MasterConsole:
     def __init__(self, identity_manager: IdentityManager, journal: Journal, risk: RiskEngine, router: Router):
+        self.identity_manager = identity_manager
         self.identity = identity_manager.get_identity()
         self.journal = journal
         self.risk = risk
         self.router = router
         self.dashboard = WyckoffDashboard(journal)
+
+    def ensure_bound_identity(self) -> None:
+        if self.identity.get("source") == "unbound":
+            self.identity = self.identity_manager.require_onboarding_binding()
 
     def show_banner(self) -> None:
         print(f"{BOLD}{CYAN}UVDM Wingman TM 2025{RESET}")
@@ -459,7 +509,14 @@ class MasterConsole:
         print("Select profile:")
         print("1) Founder")
         print("2) XRPeasy Digital Solutions Heir")
-        return HEIR if input("> ").strip() == "2" else FOUNDER
+        print("3) New User")
+        choice = input("> ").strip()
+        if choice == "2":
+            return HEIR
+        if choice == "3":
+            self.ensure_bound_identity()
+            return NEW_USER
+        return FOUNDER
 
     def select_mode(self) -> str:
         print("Select mode:")
@@ -467,11 +524,17 @@ class MasterConsole:
         print("2) Live-gated")
         return "live" if input("> ").strip() == "2" else "dry"
 
-    def select_market(self) -> str:
+    def select_market(self) -> tuple[str, str]:
         print("Select market:")
-        print("1) Spot")
-        print("2) Futures")
-        return "futures" if input("> ").strip() == "2" else "spot"
+        print("1) Futures / Long")
+        print("2) Spot")
+        print("3) Futures / Short")
+        choice = input("> ").strip()
+        if choice == "3":
+            return "futures", "sell"
+        if choice == "2":
+            return "spot", "buy"
+        return "futures", "buy"
 
     def select_venue(self, mode: str, market: str) -> str:
         if mode == "live":
@@ -480,26 +543,64 @@ class MasterConsole:
             return "spot_router"
         return "paper_router"
 
-    def build_intent(self, user: UserProfile, mode: str, market: str, venue: str) -> Optional[OrderIntent]:
+    def select_entry_style(self) -> str:
+        print("Select entry style:")
+        print("1) Adaptive Limit Ladder")
+        print("2) Single Shot")
+        return "single" if input("> ").strip() == "2" else "ladder"
+
+    def prompt_reference_price(self, symbol: str) -> float:
+        base = extract_base_symbol(symbol)
+        return prompt_money(f"Reference price for {base} in USDT: ")
+
+    def build_tp_ladder(self, entry_style: str) -> List[Dict[str, Any]]:
+        if entry_style == "single":
+            return [{"take_profit_pct": 2.0, "size": 1.0}]
+        return [
+            {"take_profit_pct": 1.0, "size": 0.25},
+            {"take_profit_pct": 2.0, "size": 0.25},
+            {"take_profit_pct": 3.0, "size": 0.50},
+        ]
+
+    def render_risk_block(self, intent: OrderIntent) -> None:
+        colour = leverage_colour(intent.leverage)
+        base = extract_base_symbol(intent.symbol)
+        print("")
+        print(f"{colour}{BOLD}[ RISK SNAPSHOT ]{RESET}")
+        print(
+            f"{colour}{intent.market.upper():<8}{RESET} | {base:<6} | side={intent.side:<4} | lev={intent.leverage:.0f}x | "
+            f"actual={format_compact(intent.usdt_amount)} USDT | notional={format_compact(intent.notional_usd)} USDT | "
+            f"size={format_compact(intent.asset_amount, 4)} {base}{RESET}"
+        )
+        if intent.entry_style == "ladder":
+            print(f"{CYAN}Adaptive Limit Ladder{RESET} -> compact notional and asset sizing shown, sir.")
+        else:
+            print(f"{WHITE}Single Shot{RESET} -> one compact entry block, sir.")
+        print(f"{GREEN}5x green{RESET} | {YELLOW}7x yellow{RESET} | {RED}10x red{RESET}")
+
+    def build_intent(self, user: UserProfile, mode: str, market: str, side: str, venue: str) -> Optional[OrderIntent]:
         portfolio = prompt_money("Current total portfolio value in USD: ")
         symbol = get_symbol()
-        side = get_side()
-        leverage = 1.0 if market == "spot" else prompt_leverage("Leverage (e.g. 3): ")
+        reference_price = self.prompt_reference_price(symbol)
+        leverage = 1.0 if market == "spot" else prompt_leverage("Leverage (recommend 5x, max 10x): ")
+        entry_style = self.select_entry_style()
 
         while True:
-            raw = input("Notional in USD (or 'quit'): ").strip().lower()
+            raw = input("Actual amount of USDT to deploy (or 'quit'): ").strip().lower()
             if raw in {"quit", "q", "exit"}:
                 return None
             try:
-                notional = parse_money(raw)
-                if notional <= 0:
-                    print("Notional must be greater than zero, sir.")
+                usdt_amount = parse_money(raw)
+                if usdt_amount <= 0:
+                    print("Actual USDT amount must be greater than zero, sir.")
                     continue
                 break
             except ValueError:
-                print("Invalid notional, sir. Try 500, 5000, 50k, or 1.2m.")
+                print("Invalid amount, sir. Try 500, 1000, 2.5k, or 10k.")
 
         limit_value = portfolio * user.max_pct
+        notional = smart_round(usdt_amount * leverage)
+        asset_amount = smart_round(notional / reference_price)
         intent = OrderIntent(
             intent_id=str(uuid.uuid4()),
             ts=utc_now(),
@@ -513,35 +614,35 @@ class MasterConsole:
             symbol=symbol,
             side=side,
             portfolio_usd=portfolio,
+            usdt_amount=usdt_amount,
             notional_usd=notional,
+            asset_amount=asset_amount,
             leverage=leverage,
             max_pct=user.max_pct,
             limit_value_usd=limit_value,
+            entry_style=entry_style,
             stop_loss_pct=1.0 if market == "spot" else 0.8,
-            tp_ladder=[
-                {"take_profit_pct": 1.0, "size": 0.25},
-                {"take_profit_pct": 2.0, "size": 0.25},
-                {"take_profit_pct": 3.0, "size": 0.50},
-            ],
-            notes="Clean rewritten Wingman master console intent",
-            idempotency_key=f"{user.key}-{symbol}-{side}-{int(time.time())}",
+            tp_ladder=self.build_tp_ladder(entry_style),
+            notes=f"Clean rewritten Wingman master console intent ({entry_style})",
+            idempotency_key=f"{user.key}-{extract_base_symbol(symbol)}-{side}-{int(time.time())}",
         )
         self.risk.validate(user, intent)
+        self.render_risk_block(intent)
         return intent
 
     def confirm_intent(self, user: UserProfile, intent: OrderIntent) -> bool:
         print("")
         print(f"{user.name}, bound to {intent.identity_name} #{intent.identity_number}.")
         print(
-            f"Portfolio: ${intent.portfolio_usd:,.2f} | Policy: {intent.max_pct * 100:.2f}% per instruction "
+            f"Portfolio: ${intent.portfolio_usd:,.2f} | Policy: {intent.max_pct * 100:.2f}% actual USDT per instruction "
             f"(max ${intent.limit_value_usd:,.2f})."
         )
         print(
-            f"About to {intent.side} {intent.symbol} for approximately ${intent.notional_usd:,.2f} "
-            f"on {intent.market} in {intent.mode} mode."
+            f"About to {intent.side} {intent.symbol} using actual ${intent.usdt_amount:,.2f} USDT, "
+            f"notional ${intent.notional_usd:,.2f}, size {intent.asset_amount:,.4f}."
         )
         TTS.speak(
-            f"Confirmation required. {intent.side} {intent.symbol} for approximately {intent.notional_usd:,.2f} dollars."
+            f"Confirmation required. {intent.side} {extract_base_symbol(intent.symbol)} with {intent.usdt_amount:,.2f} dollars actual and {intent.notional_usd:,.2f} dollars notional."
         )
         for i in range(1, user.confirms + 1):
             if i < user.confirms:
@@ -604,10 +705,10 @@ def main() -> int:
 
     user = console.select_profile()
     mode = console.select_mode()
-    market = console.select_market()
+    market, side = console.select_market()
     venue = console.select_venue(mode, market)
     try:
-        intent = console.build_intent(user, mode, market, venue)
+        intent = console.build_intent(user, mode, market, side, venue)
         if intent is None:
             print(f"{YELLOW}No instruction created.{RESET}")
             return 0
