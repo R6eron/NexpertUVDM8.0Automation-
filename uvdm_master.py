@@ -1,3 +1,6 @@
+cd \~/NexpertUVDM-Automation
+
+cat > uvdm_master.py << 'EOF'
 #!/usr/bin/env python3
 from __future__ import annotations
 
@@ -251,8 +254,7 @@ class Journal:
     def append(self, event: Dict[str, Any]) -> None:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         with self.log_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(event) + "
-")
+            f.write(json.dumps(event) + "\n")
 
     def write_receipt(self, intent: OrderIntent, payload: Dict[str, Any]) -> Path:
         self.receipt_dir.mkdir(parents=True, exist_ok=True)
@@ -444,8 +446,7 @@ class MasterConsole:
         print(f"{GOLD}Process over outcome..{RESET}")
         print(f"{GOLD}No fear or Greed if you hope to succeed..{RESET}")
         print(f"{GREEN}Tape is the only source of Truth{RESET}")
-        print(f"{MAGENTA}{APP_NAME} v{APP_VERSION}{RESET}
-")
+        print(f"{MAGENTA}{APP_NAME} v{APP_VERSION}{RESET}")
         TTS.speak("U V D M Wingman online, sir.")
 
     def select_main_action(self) -> str:
@@ -620,3 +621,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+EOF
+
+python -m py_compile uvdm_master.py && echo "✅ Complete working code restored."
