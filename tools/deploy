@@ -151,6 +151,7 @@ if [ -z "$style" ]; then
   say "${C}[ EXECUTION STYLE ]${R}"
   say "${B}1.${R} ${W}Single shot${R}"
   say "${B}2.${R} ${W}Limit ladder${R}"
+  speak "Jesse here. Choose your weapon. One for single shot. Two for the ladder. Start small, build with proof."
   read -r -p "Choose option (1/2): " opt
   case "${opt,,}" in
     1|single|single_shot) style="single" ;;
@@ -167,6 +168,28 @@ else
   say "${Y}mode_selected${R} ${W}limit_ladder${R}"
   say "${W}Payload:${R} ${W}set limit ladder for ${amount} ${asset_up} ${mode} ${lev}${R}"
   speak "set limit ladder for ${amount} ${asset_up} ${mode} ${lev}"
+
+  if [ -n "${notional_usdt:-}" ]; then
+    l1_usdt="$(awk -v n="$notional_usdt" 'BEGIN{printf "%.2f", n*0.33}')"
+    l2_usdt="$(awk -v n="$notional_usdt" 'BEGIN{printf "%.2f", n*0.33}')"
+    l3_usdt="$(awk -v n="$notional_usdt" 'BEGIN{printf "%.2f", n*0.34}')"
+  fi
+
+  if [ -n "${est_qty:-}" ]; then
+    l1_qty="$(awk -v q="$est_qty" 'BEGIN{printf "%.2f", q*0.33}')"
+    l2_qty="$(awk -v q="$est_qty" 'BEGIN{printf "%.2f", q*0.33}')"
+    l3_qty="$(awk -v q="$est_qty" 'BEGIN{printf "%.2f", q*0.34}')"
+  else
+    l1_qty="calc on execution"
+    l2_qty="calc on execution"
+    l3_qty="calc on execution"
+  fi
+
+  say
+  say "${C}[ LIMIT LADDER ]${R}"
+  say "${C}L1${R} ${W}33%${R} ${Y}@ -0.8%${R} ${W}| Notional USDT:${R} ${G}${l1_usdt}${R} ${W}| ${asset_up} qty:${R} ${C}${l1_qty}${R}"
+  say "${C}L2${R} ${W}33%${R} ${Y}@ -1.6%${R} ${W}| Notional USDT:${R} ${G}${l2_usdt}${R} ${W}| ${asset_up} qty:${R} ${C}${l2_qty}${R}"
+  say "${C}L3${R} ${W}34%${R} ${Y}@ -2.8%${R} ${W}| Notional USDT:${R} ${G}${l3_usdt}${R} ${W}| ${asset_up} qty:${R} ${C}${l3_qty}${R}"
 fi
 
 if [ -f "$BASE/tools/uvdm_live.py" ]; then

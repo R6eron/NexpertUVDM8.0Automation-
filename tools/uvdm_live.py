@@ -1,4 +1,3 @@
-cat > ~/NexpertUVDM-Automation/tools/uvdm_live.py <<'EOF'
 #!/usr/bin/env python3
 import sys, os, json, time, hmac, hashlib, urllib.request, subprocess, shutil
 from decimal import Decimal, ROUND_DOWN
@@ -194,30 +193,65 @@ def main():
         print("")
         print("Single shot complete.")
     else:
-        weights = [Decimal("0.50"), Decimal("0.30"), Decimal("0.20")]
-        roles = ["top", "mid", "val"]
         total_qty = Decimal("0")
 
-        print(c("1;33", "LIMIT LADDER"))
-        print(c("36", "────────────────────────────────────────"))
-        print(c("37", "#  Limit     XLM         USDT   Role"))
+        if asset == "XLM":
+            levels = [
+                (Decimal("0.20"), "probe", Decimal("0.1852"), "starter fill"),
+                (Decimal("0.35"), "core",  Decimal("0.1845"), "main reaction zone"),
+                (Decimal("0.45"), "value", Decimal("0.1839"), "structural low add"),
+            ]
+            invalidation = Decimal("0.1838")
+            bias_text = "Constructive while 0.1838 holds"
+            plan_text = "Hybrid probe / core / value"
+        else:
+            levels = [
+                (Decimal("0.20"), "probe", q8(price * (Decimal("1") - step * Decimal("0.8"))), "starter fill"),
+                (Decimal("0.35"), "core",  q8(price * (Decimal("1") - step * Decimal("1.4"))), "main reaction zone"),
+                (Decimal("0.45"), "value", q8(price * (Decimal("1") - step * Decimal("2.4"))), "structural low add"),
+            ]
+            invalidation = q8(price * (Decimal("1") - step * Decimal("2.6")))
+            bias_text = f"Constructive while {invalidation} holds"
+            plan_text = "Hybrid probe / core / value"
 
-        for i, (w, role) in enumerate(zip(weights, roles), 1):
-            pb = step * Decimal(i)
+        print(c("1;36", "VOL / DEMAND LADDER"))
+        print(c("36", "────────────────────────────────────────"))
+        put("Symbol", c("1;36", f"{asset}USDT Perpetual"))
+        put("Bias", c("1;32", bias_text))
+        put("Plan", c("1;33", plan_text))
+        put("State", c("1;31" if live else "1;35", "LIVE" if live else "DRY RUN"))
+        print("")
+        print(c("1;36", "LADDER"))
+
+        for i, (w, role, limit_price, route_note) in enumerate(levels, 1):
             budget = (usdt * w).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
-            limit_price = q8(price * (Decimal("1") - pb))
             qty = q8(budget / limit_price)
             total_qty += qty
             result = place_order(cname, "BUY", qty, limit_price, lev, live=live)
 
-            print(c("32", f"{i:<2} {limit_price:<10} {qty:<11} {budget:<6} {role}"))
+            print(
+                f"  {c('1;37', f'{i})')} "
+                f"{c('1;36', f'{limit_price:.8f}')} | "
+                f"{c('1;32', f'{qty} {asset}')} | "
+                f"{c('1;33', f'{budget:.2f} USDT')} | "
+                f"{c('1;37', role)}"
+            )
+            put("Route", c("35", route_note))
             put("Order", json.dumps(result, separators=(",", ":")))
 
-        print(c("36", "────────────────────────────────────────"))
-        put("Total", c("1;37", f"{total_qty} {asset} / ${usdt:.2f}"))
         print("")
-        print("Ladder complete.")
+        print(c("1;36", "TOTAL"))
+        put("Size", c("1;32", f"{total_qty} {asset}"))
+        put("Budget", c("1;33", f"{usdt:.2f} USDT"))
+        put("Invalidation", c("1;31", f"acceptance below {invalidation}"))
+        print("")
+        print(c("1;36", "DOCTRINE"))
+        print(c("37", "  1. Start small (20%)."))
+        print(c("37", "  2. Core at reaction (35%)."))
+        print(c("37", "  3. Value at structural low (45%)."))
+        print(c("37", "  4. Exit clean if demand fails."))
+        print(c("36", "────────────────────────────────────────"))
+        print(c("1;32", "Ladder complete."))
 
 if __name__ == "__main__":
     main()
-EOF
