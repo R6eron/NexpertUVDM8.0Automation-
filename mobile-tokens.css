@@ -1,0 +1,17 @@
+:root {
+  --bg: #f7f6f2;
+  --surface: #fbfaf7;
+  --surface-raised: #f0ede7;
+
+  --text: #1f1d18;
+  --text-muted: #5f5b53;
+  --text-faint: #8d887f;
+
+  --primary: #01696f;
+  --primary-strong: #0c4e54;
+  --on-primary: #f9f8f4;
+
+  --success: #437a22;
+  --error: #a13544;
+  --warning: #964219;
+}
