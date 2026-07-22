@@ -23,63 +23,6 @@ voice-lab/samples/
 wingman.err
 wingman.out
 
-<<<<<<< HEAD
 *.bak
 *.bad
 snapshot.txt
-=======
-# Termux / editor backups (optional safety)
-*~
-*.swp
-.env
-.env*
-checkpoints/
-# UVDM runtime backups
-tools/*.amountbak.*
-tools/*.sigbak.*
-tools/*.bodyreplacebak.*
-tools/*.bodystrbak.*
-tools/*.bytesfixbak.*
-tools/*.callfixbak.*
-tools/*.execbak.*
-tools/*.fixbak*
-tools/*.fullbak.*
-tools/*.indentfixbak.*
-tools/*.inlinebodybak.*
-tools/*.ladderbak.*
-tools/*.laddertable.*
-tools/*.oneshot.*
-tools/*.placeorderreplacebak.*
-tools/*.repairbak.*
-tools/*.sedbak.*
-tools/*.stable.*
-tools/*.tidybak.*
-tools/*.volintbak.*
-tools/*.whisperbak.*
-tools/*.tmp
-
-# Voice artifacts
-voice/*.wav
-voice/*.mp3
-
-# Local checkpoints and snapshots
-backups/
-checkpoints/
-
-# Python cache
-__pycache__/
-*.pyc
-
-# Runtime logs and receipts
-logs/
-logs/receipts/
-
-# Local scratch scripts
-ter.py
-
-# Patch helper tools
-tools/make_patch.sh
-.env
-backups/
-runtime/
->>>>>>> e139ab8 (Lock out env and runtime from git)
