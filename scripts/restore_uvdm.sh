@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-set -euo pipefail
-cd "$HOME/NexpertUVDM-Automation"
-git status --short || true
-echo "restoreuvdm ready"
+#!/data/data/com.termux/files/usr/bin/bash
+set -e
+"$HOME/.config/uvdm/restore_startup.sh"
