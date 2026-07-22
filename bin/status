@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$HOME/NexpertUVDM-Automation"
+printf 'repo=%s
+' "$PWD"
+printf 'branch='
+git branch --show-current 2>/dev/null || true
+printf '
+'
+printf 'summary_script=%s
+' "$HOME/NexpertUVDM-Automation/uv_auto_dashboard.py"
+printf 'deploy_tool=%s
+' "$HOME/NexpertUVDM-Automation/tools/deploy"
+printf 'runtime_files:
+'
+find runtime -maxdepth 2 -type f 2>/dev/null | sort | sed 's#^# - #' || true

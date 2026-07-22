@@ -8,50 +8,50 @@ C_RST = '\u001B[0m'
 print(C_CYN + "====")
 print("               UVDM AUTO DASHBOARD")
 print("=====================================================")
-print("====" + C_RST + "
-")
+print("====" + C_RST)
+print("")
 
 print(C_CYN + "[ AUTO SUMMARY ]" + C_RST)
 print("FLR  " + C_YLW + "Phase B" + C_RST + "  ST  -> " + C_YLW + "OBSERVE / MICRO" + C_RST)
 print("SGB  " + C_GRN + "Phase D" + C_RST + "  SOS > LPS -> " + C_GRN + "DEPLOY ZONE" + C_RST)
 print("PAXG " + C_YLW + "Phase A" + C_RST + "  SC > AR -> " + C_YLW + "OBSERVE ONLY" + C_RST)
-print("XLM  " + C_GRN + "Phase D" + C_RST + "  SOS > BUEC > LPS -> " + C_GRN + "DEPLOY ZONE" + C_RST + "
-")
+print("XLM  " + C_GRN + "Phase D" + C_RST + "  SOS > BUEC > LPS -> " + C_GRN + "DEPLOY ZONE" + C_RST)
+print("")
 
-print(C_CYN + "[ ASSET DETAIL ]" + C_RST + "
-")
+print(C_CYN + "[ ASSET DETAIL ]" + C_RST)
+print("")
 
 print(C_CYN + "=== FLR ===" + C_RST)
 print("Phase: " + C_RST + "B accumulation")
 print("Event: " + C_RST + "ST")
 print("Bias : " + C_YLW + "ST_OBSERVE_OR_MICRO" + C_RST)
 print("Risk : " + C_YLW + "cautious posture" + C_RST)
-print("Note : " + C_RST + "Testing supply. Wait for Spring or S
-")
+print("Note : " + C_RST + "Testing supply. Wait for Spring or S")
+print("")
 
 print(C_CYN + "=== SGB ===" + C_RST)
 print("Phase: " + C_GRN + "D accumulation" + C_RST)
 print("Event: " + C_RST + "LPS")
 print("Bias : " + C_GRN + "LPS_DEPLOY_ZONE" + C_RST)
 print("Risk : " + C_GRN + "offensive posture" + C_RST)
-print("Note : " + C_RST + "Demand holding support.
-")
+print("Note : " + C_RST + "Demand holding support.")
+print("")
 
 print(C_CYN + "=== PAXG ===" + C_RST)
 print("Phase: " + C_RST + "A stopping action")
 print("Event: " + C_RST + "SC")
 print("Bias : " + C_YLW + "SC_OBSERVE_ONLY" + C_RST)
 print("Risk : " + C_YLW + "defensive posture" + C_RST)
-print("Note : " + C_RST + "Violent selloff mapped. Wait.
-")
+print("Note : " + C_RST + "Violent selloff mapped. Wait.")
+print("")
 
 print(C_CYN + "=== XLM ===" + C_RST)
 print("Phase: " + C_RST + "D accumulation")
 print("Event: " + C_RST + "LPS")
 print("Bias : " + C_GRN + "LPS_DEPLOY_ZONE" + C_RST)
 print("Risk : " + C_GRN + "offensive posture" + C_RST)
-print("Note : " + C_RST + "Narrowing spreads on back-up.
-")
+print("Note : " + C_RST + "Narrowing spreads on back-up.")
+print("")
 
 print(C_CYN + "[ ROUTING ]" + C_RST)
 print("FLR  -> " + C_YLW + "ST_OBSERVE_OR_MICRO" + C_RST)

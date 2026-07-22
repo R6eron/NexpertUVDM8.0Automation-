@@ -1,0 +1,160 @@
+{
+  "defaults": {
+    "mode_default": "dry",
+    "spot_default_leverage": "1x",
+    "futures_default_leverage": "3x",
+    "max_live_leverage": 5,
+    "require_invalidation": true,
+    "require_proof": true,
+    "ml_enabled": false,
+    "det_enabled": false,
+    "wyckoff_required": false,
+    "exchange": "mexc"
+  },
+  "assets": [
+    {
+      "name": "xrp",
+      "symbol": "XRPUSDT",
+      "alias": "uvxrp",
+      "type": "spot_futures",
+      "max_live_leverage": 10,
+      "ml_profile": "xrp_core",
+      "ml": {
+        "enabled": true,
+        "protocol": "uvdm_ml_v1",
+        "model_name": "xrp_microstructure_v1",
+        "feature_set": "xrp_features_core_v1",
+        "confidence_gate": 0.62,
+        "inference_mode": "confirm_only"
+      },
+      "execution": {
+        "spot_allowed": true,
+        "futures_allowed": true,
+        "live_allowed": true,
+        "requires_invalidation": true,
+        "requires_proof": true,
+        "max_orders_per_cycle": 1
+      }
+    },
+    {
+      "name": "xlm",
+      "symbol": "XLMUSDT",
+      "alias": "uvxlm",
+      "type": "spot_futures",
+      "max_live_leverage": 5,
+      "ml_profile": "xlm_core",
+      "ml": {
+        "enabled": true,
+        "protocol": "uvdm_ml_v1",
+        "model_name": "xlm_microstructure_v1",
+        "feature_set": "xlm_features_core_v1",
+        "confidence_gate": 0.62,
+        "inference_mode": "confirm_only"
+      },
+      "execution": {
+        "spot_allowed": true,
+        "futures_allowed": true,
+        "live_allowed": true,
+        "requires_invalidation": true,
+        "requires_proof": true,
+        "max_orders_per_cycle": 1
+      }
+    },
+    {
+      "name": "btc",
+      "symbol": "BTCUSDT",
+      "alias": "uvbtc",
+      "type": "spot_futures",
+      "max_live_leverage": 3,
+      "ml_profile": "btc_core",
+      "ml": {
+        "enabled": true,
+        "protocol": "uvdm_ml_v1",
+        "model_name": "btc_microstructure_v1",
+        "feature_set": "btc_features_core_v1",
+        "confidence_gate": 0.65,
+        "inference_mode": "confirm_only"
+      },
+      "execution": {
+        "spot_allowed": true,
+        "futures_allowed": true,
+        "live_allowed": true,
+        "requires_invalidation": true,
+        "requires_proof": true,
+        "max_orders_per_cycle": 1
+      }
+    },
+    {
+      "name": "sgb",
+      "symbol": "SGBUSDT",
+      "alias": "uvsgb",
+      "type": "spot_only",
+      "max_live_leverage": 1,
+      "ml_profile": "sgb_core",
+      "ml": {
+        "enabled": true,
+        "protocol": "uvdm_ml_v1",
+        "model_name": "sgb_microstructure_v1",
+        "feature_set": "sgb_features_core_v1",
+        "confidence_gate": 0.6,
+        "inference_mode": "confirm_only"
+      },
+      "execution": {
+        "spot_allowed": true,
+        "futures_allowed": false,
+        "live_allowed": true,
+        "requires_invalidation": true,
+        "requires_proof": true,
+        "max_orders_per_cycle": 1
+      }
+    },
+    {
+      "name": "flr",
+      "symbol": "FLRUSDT",
+      "alias": "uvflr",
+      "type": "spot_futures",
+      "max_live_leverage": 3,
+      "ml_profile": "flr_core",
+      "ml": {
+        "enabled": true,
+        "protocol": "uvdm_ml_v1",
+        "model_name": "flr_microstructure_v1",
+        "feature_set": "flr_features_core_v1",
+        "confidence_gate": 0.61,
+        "inference_mode": "confirm_only"
+      },
+      "execution": {
+        "spot_allowed": true,
+        "futures_allowed": true,
+        "live_allowed": true,
+        "requires_invalidation": true,
+        "requires_proof": true,
+        "max_orders_per_cycle": 1
+      }
+    },
+    {
+      "name": "paxg",
+      "symbol": "PAXGUSDT",
+      "alias": "uvpaxg",
+      "type": "spot_only",
+      "max_live_leverage": 1,
+      "ml_profile": "paxg_core",
+      "ml": {
+        "enabled": true,
+        "protocol": "uvdm_ml_v1",
+        "model_name": "paxg_microstructure_v1",
+        "feature_set": "paxg_features_core_v1",
+        "confidence_gate": 0.66,
+        "inference_mode": "confirm_only"
+      },
+      "execution": {
+        "spot_allowed": true,
+        "futures_allowed": false,
+        "live_allowed": true,
+        "requires_invalidation": true,
+        "requires_proof": true,
+        "max_orders_per_cycle": 1
+      }
+    }
+  ]
+}

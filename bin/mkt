@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$HOME/NexpertUVDM-Automation"
+exec bash output/test_all_assets_live.sh
